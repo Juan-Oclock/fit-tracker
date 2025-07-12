@@ -145,6 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         res.json(workouts);
       } else {
+        const userId = (req as any).user.id; // Fix: Cast to any to access user.id
         const workouts = await storage.getWorkouts(userId);
         res.json(workouts);
       }

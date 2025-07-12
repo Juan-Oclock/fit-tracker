@@ -26,9 +26,10 @@ import {
   type GoalPhoto,
   type InsertGoalPhoto
 } from "@shared/schema";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { eq, and, gte, lte, ilike, sql, desc } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
+import { eq, and, gte, lte, ilike, sql as drizzleSql, desc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -36,6 +37,7 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserGoal(userId: string, weeklyGoal: number): Promise<User | undefined>;
+  ensureInitialized(): Promise<void>;
 
   // Exercise methods
   getExercises(): Promise<Exercise[]>;
@@ -94,7 +96,7 @@ const initializeDatabase = () => {
   }
   
   try {
-    sql = neon(process.env.DATABASE_URL);
+    sql = postgres(process.env.DATABASE_URL);
     db = drizzle(sql);
     return true;
   } catch (error) {
@@ -245,7 +247,11 @@ export class PostgresStorage implements IStorage {
     return await db
       .select()
       .from(workouts)
-      .where(and(gte(workouts.date, startDate), lte(workouts.date, endDate), eq(workouts.userId, userId)))
+      .where(and(
+        gte(workouts.date, startDate),
+        lte(workouts.date, endDate), 
+        eq(workouts.userId, userId)
+      ))
       .orderBy(desc(workouts.date));
   }
 
@@ -356,7 +362,7 @@ export class PostgresStorage implements IStorage {
     await this.ensureInitialized();
 
     const [user] = await db.select().from(users).where(eq(users.id, userId));
-    const totalWorkouts = await db.select({ count: sql<number>`count(*)` }).from(workouts).where(eq(workouts.userId, userId));
+    const totalWorkouts = await db.select({ count: drizzleSql<number>`count(*)` }).from(workouts).where(eq(workouts.userId, userId));
     
     const now = new Date();
     const startOfWeek = new Date(now);
@@ -364,16 +370,16 @@ export class PostgresStorage implements IStorage {
     startOfWeek.setHours(0, 0, 0, 0);
     
     const thisWeek = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: drizzleSql<number>`count(*)` })
       .from(workouts)
       .where(and(gte(workouts.date, startOfWeek.toISOString()), eq(workouts.userId, userId)));
 
-    const recordsCount = await db.select({ count: sql<number>`count(*)` }).from(personalRecords).where(eq(personalRecords.userId, userId));
+    const recordsCount = await db.select({ count: drizzleSql<number>`count(*)` }).from(personalRecords).where(eq(personalRecords.userId, userId));
 
     // Calculate total volume (sum of sets * reps * weight)
     const volumeResult = await db
       .select({ 
-        volume: sql<number>`COALESCE(SUM(${workoutExercises.sets} * ${workoutExercises.reps} * ${workoutExercises.weight}), 0)` 
+        volume: drizzleSql<number>`COALESCE(SUM(${workoutExercises.sets} * ${workoutExercises.reps} * ${workoutExercises.weight}), 0)` 
       })
       .from(workoutExercises);
 
@@ -397,10 +403,10 @@ export class PostgresStorage implements IStorage {
       .select({
         exerciseId: exercises.id,
         exerciseName: exercises.name,
-        totalVolume: sql<number>`COALESCE(SUM(${workoutExercises.sets} * ${workoutExercises.reps} * ${workoutExercises.weight}), 0)`,
-        maxWeight: sql<number>`COALESCE(MAX(${workoutExercises.weight}), 0)`,
-        totalSets: sql<number>`COALESCE(SUM(${workoutExercises.sets}), 0)`,
-        lastPerformed: sql<string>`COALESCE(MAX(${workouts.date}), '')`
+        totalVolume: drizzleSql<number>`COALESCE(SUM(${workoutExercises.sets} * ${workoutExercises.reps} * ${workoutExercises.weight}), 0)`,
+        maxWeight: drizzleSql<number>`COALESCE(MAX(${workoutExercises.weight}), 0)`,
+        totalSets: drizzleSql<number>`COALESCE(SUM(${workoutExercises.sets}), 0)`,
+        lastPerformed: drizzleSql<string>`COALESCE(MAX(${workouts.date}), '')`
       })
       .from(exercises)
       .leftJoin(workoutExercises, eq(exercises.id, workoutExercises.exerciseId))
@@ -448,9 +454,9 @@ export class PostgresStorage implements IStorage {
   async getMonthlyGoalData(userId: string, month: number, year: number): Promise<MonthlyGoalData> {
     const goal = await this.getMonthlyGoal(userId, month, year);
     
-    // Get workouts for the month
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    // Get workouts for the month - convert dates to ISO strings
+    const startDate = new Date(year, month - 1, 1).toISOString();
+    const endDate = new Date(year, month, 0).toISOString();
     
     const monthWorkouts = await db
       .select()
