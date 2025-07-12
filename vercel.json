@@ -5,6 +5,7 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/dist/index.js" },
-    { "src": "/(.*)", "dest": "/dist/public/$1" }
+    { "src": "/(.*\.(js|css|png|jpg|jpeg|gif|ico|json|svg|webp))", "dest": "/dist/public/$1" },
+    { "src": "/(.*)", "dest": "/dist/public/index.html" }
   ]
 }
