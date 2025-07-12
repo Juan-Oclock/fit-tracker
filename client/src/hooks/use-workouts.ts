@@ -32,6 +32,8 @@ export function useCreateWorkout() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/workouts"] });
+      // Add this line to invalidate monthly goal data for all months
+      queryClient.invalidateQueries({ queryKey: ["/api/goals/monthly"] });
     },
   });
 }
