@@ -3,9 +3,8 @@
   "builds": [
     { "src": "package.json", "use": "@vercel/node" }
   ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/index.js" },
-    { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|json|svg|webp))", "dest": "/public/$1" },
-    { "src": "/(.*)", "dest": "/public/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/index.js" },
+    { "source": "/(.*)", "destination": "/public/index.html" }
   ]
 }
