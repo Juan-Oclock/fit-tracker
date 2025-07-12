@@ -4,8 +4,8 @@
     { "src": "package.json", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/dist/index.js" },
-    { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|json|svg|webp))", "dest": "/dist/public/$1" },
-    { "src": "/(.*)", "dest": "/dist/public/index.html" }
+    { "src": "/api/(.*)", "dest": "/index.js" },
+    { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|json|svg|webp))", "dest": "/public/$1" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }
