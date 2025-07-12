@@ -370,14 +370,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Add proper schema validation
-      const validatedData = insertMonthlyGoalSchema.parse(req.body);
+      // Create a custom validation schema that excludes userId (server will add it)
+      const clientGoalSchema = insertMonthlyGoalSchema.omit({ userId: true });
+      const validatedData = clientGoalSchema.parse(req.body);
       const { month, year, targetWorkouts } = validatedData;
       
       const storage = await getStorage();
       const goal = await storage.upsertMonthlyGoal(user.id, month, year, targetWorkouts);
       return res.json(goal);
-    } catch (error: any) { // Add type annotation here
+    } catch (error: any) {
       console.error("Error updating monthly goal:", error);
       // Check if it's a validation error
       if (error?.name === 'ZodError') {
