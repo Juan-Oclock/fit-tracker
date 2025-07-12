@@ -569,7 +569,7 @@ export class PostgresStorage implements IStorage {
 
 export class MemStorage implements IStorage {
   private monthlyGoals: Map<string, MonthlyGoal>;
-  private goalPhotos: Map<string, GoalPhoto>;
+  private goalPhotos: Map<number, GoalPhoto>;
   private users: Map<string, User>;
   private exercises: Map<number, Exercise>;
   private workouts: Map<number, Workout>;
