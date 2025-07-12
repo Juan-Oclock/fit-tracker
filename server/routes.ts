@@ -341,7 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Monthly Goals
   app.get("/api/goals/monthly", isAuthenticated, async (req: any, res) => {
-    const user = req.user;
+    const user = (req as any).user; // Cast to any to access user properties
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -363,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.put("/api/goals/monthly", isAuthenticated, async (req, res) => {
-    const user = req.user;
+    const user = (req as any).user; // Cast to any to access user properties
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }

@@ -28,7 +28,7 @@ import {
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
+import { neon } from "@neondatabase/serverless";
 import { eq, and, gte, lte, ilike, sql as drizzleSql, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -81,7 +81,7 @@ export interface IStorage {
   getGoalPhotos(userId: string, month: number, year: number): Promise<GoalPhoto[]>;
   getBeforePhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined>;
   getLatestPhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined>;
-  async deleteGoalPhoto(id: number, userId: string): Promise<boolean>;
+  deleteGoalPhoto(id: number, userId: string): Promise<boolean>;
   updateGoalPhoto(id: number, userId: string, description?: string): Promise<GoalPhoto | undefined>;
 }
 
@@ -96,7 +96,7 @@ const initializeDatabase = () => {
   }
   
   try {
-    sql = postgres(process.env.DATABASE_URL);
+    sql = neon(process.env.DATABASE_URL);
     db = drizzle(sql);
     return true;
   } catch (error) {
@@ -116,7 +116,7 @@ export class PostgresStorage implements IStorage {
     this.initializeDefaultExercises();
   }
 
-  private async ensureInitialized() {
+  async ensureInitialized(): Promise<void> {
     if (this.isInitialized) return;
     
     try {
@@ -248,8 +248,8 @@ export class PostgresStorage implements IStorage {
       .select()
       .from(workouts)
       .where(and(
-        gte(workouts.date, startDate),
-        lte(workouts.date, endDate), 
+        gte(workouts.date, new Date(startDate)),
+        lte(workouts.date, new Date(endDate)), 
         eq(workouts.userId, userId)
       ))
       .orderBy(desc(workouts.date));
@@ -454,9 +454,9 @@ export class PostgresStorage implements IStorage {
   async getMonthlyGoalData(userId: string, month: number, year: number): Promise<MonthlyGoalData> {
     const goal = await this.getMonthlyGoal(userId, month, year);
     
-    // Get workouts for the month - convert dates to ISO strings
-    const startDate = new Date(year, month - 1, 1).toISOString();
-    const endDate = new Date(year, month, 0).toISOString();
+    // Get workouts for the month
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
     
     const monthWorkouts = await db
       .select()
