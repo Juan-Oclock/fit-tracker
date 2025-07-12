@@ -372,7 +372,7 @@ export class PostgresStorage implements IStorage {
     const thisWeek = await db
       .select({ count: drizzleSql<number>`count(*)` })
       .from(workouts)
-      .where(and(gte(workouts.date, startOfWeek.toISOString()), eq(workouts.userId, userId)));
+      .where(and(gte(workouts.date, startOfWeek), eq(workouts.userId, userId)));
 
     const recordsCount = await db.select({ count: drizzleSql<number>`count(*)` }).from(personalRecords).where(eq(personalRecords.userId, userId));
 
@@ -464,8 +464,8 @@ export class PostgresStorage implements IStorage {
       .where(
         and(
           eq(workouts.userId, userId),
-          gte(workouts.date, startDate.toISOString()),
-          lte(workouts.date, endDate.toISOString())
+          gte(workouts.date, startDate),
+          lte(workouts.date, endDate)
         )
       );
     
