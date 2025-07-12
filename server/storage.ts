@@ -464,8 +464,8 @@ export class PostgresStorage implements IStorage {
       .where(
         and(
           eq(workouts.userId, userId),
-          gte(workouts.date, startDate),
-          lte(workouts.date, endDate)
+          gte(workouts.date, startDate.toISOString()),
+          lte(workouts.date, endDate.toISOString())
         )
       );
     
