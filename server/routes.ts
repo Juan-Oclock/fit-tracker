@@ -8,7 +8,8 @@ import {
   createWorkoutWithExercisesSchema,
   insertWorkoutExerciseSchema, 
   insertPersonalRecordSchema,
-  updateGoalSchema
+  updateGoalSchema,
+  insertMonthlyGoalSchema // Add this import
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -363,23 +364,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.put("/api/goals/monthly", isAuthenticated, async (req, res) => {
-    const user = (req as any).user; // Cast to any to access user properties
+    const user = (req as any).user;
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
   
-    const { month, year, targetWorkouts } = req.body;
-    
-    if (!month || !year || !targetWorkouts || targetWorkouts < 1 || targetWorkouts > 31) {
-      return res.status(400).json({ error: "Invalid input" });
-    }
-  
     try {
+      // Add proper schema validation
+      const validatedData = insertMonthlyGoalSchema.parse(req.body);
+      const { month, year, targetWorkouts } = validatedData;
+      
       const storage = await getStorage();
       const goal = await storage.upsertMonthlyGoal(user.id, month, year, targetWorkouts);
       return res.json(goal);
     } catch (error) {
       console.error("Error updating monthly goal:", error);
+      // Check if it's a validation error
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid input data", details: error.errors });
+      }
       return res.status(500).json({ error: "Failed to update monthly goal" });
     }
   });
