@@ -40,7 +40,7 @@ export default function RecentWorkouts() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Recent Workouts</h3>
           <Link href="/history">
-            <span className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-200 cursor-pointer">
+            <span className="text-sm font-medium transition-colors duration-200 cursor-pointer" style={{ color: '#FFD300' }}>
               View All
             </span>
           </Link>
@@ -60,7 +60,8 @@ export default function RecentWorkouts() {
             {recentWorkouts.map((workout) => (
               <div 
                 key={workout.id}
-                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-200 cursor-pointer"
+                className="flex items-center justify-between p-4 rounded-lg hover:opacity-80 transition-colors duration-200 cursor-pointer"
+                style={{ backgroundColor: '#262B32' }}
               >
                 <div className="flex items-center space-x-4">
                   {workout.imageUrl ? (
@@ -70,8 +71,8 @@ export default function RecentWorkouts() {
                       className="w-12 h-12 rounded-lg"
                     />
                   ) : (
-                    <div className={`p-2 ${getCategoryColor(workout.category)} rounded-lg`}>
-                      <Zap className="w-5 h-5 text-white" />
+                    <div className="p-2 rounded-lg">
+                      <Zap className="w-5 h-5" style={{ color: '#FFD300' }} />
                     </div>
                   )}
                   <div>

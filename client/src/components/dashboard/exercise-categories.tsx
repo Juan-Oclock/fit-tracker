@@ -32,22 +32,19 @@ export default function ExerciseCategories() {
       name: "Strength", 
       count: categoryStats.strength || 0, 
       icon: Zap, 
-      color: "bg-red-100 dark:bg-red-900/50",
-      iconColor: "text-red-600 dark:text-red-400"
+      iconColor: "#FFD300"
     },
     { 
       name: "Cardio", 
       count: categoryStats.cardio || 0, 
       icon: Heart, 
-      color: "bg-blue-100 dark:bg-blue-900/50",
-      iconColor: "text-blue-600 dark:text-blue-400"
+      iconColor: "#FFD300"
     },
     { 
       name: "Flexibility", 
       count: categoryStats.flexibility || 0, 
       icon: Flower, 
-      color: "bg-green-100 dark:bg-green-900/50",
-      iconColor: "text-green-600 dark:text-green-400"
+      iconColor: "#FFD300"
     },
   ];
 
@@ -62,10 +59,10 @@ export default function ExerciseCategories() {
             const Icon = category.icon;
             
             return (
-              <div key={category.name} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+              <div key={category.name} className="flex items-center justify-between p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 ${category.color} rounded-lg`}>
-                    <Icon className={`w-5 h-5 ${category.iconColor}`} />
+                  <div className="p-2 rounded-lg">
+                    <Icon className="w-5 h-5" style={{ color: category.iconColor }} />
                   </div>
                   <div>
                     <p className="font-medium text-slate-900 dark:text-white">{category.name}</p>

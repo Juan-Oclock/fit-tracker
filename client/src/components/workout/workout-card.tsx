@@ -81,8 +81,8 @@ export default function WorkoutCard({
             </div>
 
             {workout.notes && (
-              <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                <p className="text-sm text-slate-700 dark:text-slate-300">
+              <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
+                <p className="text-sm text-slate-300">
                   <span className="font-medium">Notes:</span> {workout.notes}
                 </p>
               </div>

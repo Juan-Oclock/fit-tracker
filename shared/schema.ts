@@ -139,3 +139,66 @@ export const updateGoalSchema = z.object({
 });
 
 export type UpdateGoal = z.infer<typeof updateGoalSchema>;
+
+// NEW: Goal Photos table for before/after pictures
+export const goalPhotos = pgTable("goal_photos", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  imageUrl: text("image_url").notNull(), // Base64 compressed image or URL
+  type: text("type").notNull(), // 'before' | 'progress' | 'after'
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  month: integer("month").notNull(), // 1-12
+  year: integer("year").notNull(),
+  description: text("description"), // Optional user description
+});
+
+// NEW: Monthly Goals table for tracking monthly targets
+export const monthlyGoals = pgTable("monthly_goals", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  month: integer("month").notNull(), // 1-12
+  year: integer("year").notNull(),
+  targetWorkouts: integer("target_workouts").notNull(),
+  completedWorkouts: integer("completed_workouts").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// NEW: Schema validators
+export const insertGoalPhotoSchema = createInsertSchema(goalPhotos).omit({
+  id: true,
+  timestamp: true,
+});
+
+export const insertMonthlyGoalSchema = createInsertSchema(monthlyGoals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// NEW: Types
+export type GoalPhoto = typeof goalPhotos.$inferSelect;
+export type InsertGoalPhoto = z.infer<typeof insertGoalPhotoSchema>;
+
+export type MonthlyGoal = typeof monthlyGoals.$inferSelect;
+export type InsertMonthlyGoal = z.infer<typeof insertMonthlyGoalSchema>;
+
+// NEW: Extended types for goal features
+export type MonthlyGoalData = {
+  month: number;
+  year: number;
+  targetWorkouts: number;
+  completedWorkouts: number;
+  workoutDates: string[]; // Array of workout dates in the month
+  completionPercentage: number;
+  beforePhoto?: GoalPhoto;
+  latestPhoto?: GoalPhoto;
+};
+
+export type GoalStats = {
+  currentMonth: MonthlyGoalData;
+  previousMonth?: MonthlyGoalData;
+  totalGoalPhotos: number;
+  longestStreak: number;
+  averageMonthlyCompletion: number;
+};

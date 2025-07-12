@@ -338,6 +338,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Monthly Goals
+  app.get("/api/goals/monthly", isAuthenticated, async (req: any, res) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+  
+    const { month, year } = req.query;
+    
+    if (!month || !year) {
+      return res.status(400).json({ error: "Month and year are required" });
+    }
+  
+    try {
+      const storage = await getStorage();
+      const monthlyGoalData = await storage.getMonthlyGoalData(user.id, parseInt(month as string), parseInt(year as string));
+      return res.json(monthlyGoalData);
+    } catch (error) {
+      console.error("Error fetching monthly goal data:", error);
+      return res.status(500).json({ error: "Failed to fetch monthly goal data" });
+    }
+  });
+
+  app.put("/api/goals/monthly", isAuthenticated, async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+  
+    const { month, year, targetWorkouts } = req.body;
+    
+    if (!month || !year || !targetWorkouts || targetWorkouts < 1 || targetWorkouts > 31) {
+      return res.status(400).json({ error: "Invalid input" });
+    }
+  
+    try {
+      const storage = await getStorage();
+      const goal = await storage.upsertMonthlyGoal(user.id, month, year, targetWorkouts);
+      return res.json(goal);
+    } catch (error) {
+      console.error("Error updating monthly goal:", error);
+      return res.status(500).json({ error: "Failed to update monthly goal" });
+    }
+  });
+
+  // Add after the monthly goals routes around line 388
+  // Goal Photos routes
+  app.post("/api/goals/photos", isAuthenticated, async (req: any, res) => {
+    try {
+      const { month, year, imageUrl, type, description } = req.body;
+      const userId = req.user.id;
+      
+      const storage = await getStorage();
+      const photo = await storage.createGoalPhoto(userId, month, year, imageUrl, type, description);
+      
+      res.status(201).json(photo);
+    } catch (error) {
+      console.error("Error creating goal photo:", error);
+      res.status(500).json({ error: "Failed to create goal photo" });
+    }
+  });
+  
+  app.get("/api/goals/photos/:month/:year", isAuthenticated, async (req: any, res) => {
+    try {
+      const month = parseInt(req.params.month);
+      const year = parseInt(req.params.year);
+      const userId = req.user.id;
+      
+      const storage = await getStorage();
+      const photos = await storage.getGoalPhotos(userId, month, year);
+      
+      res.json(photos);
+    } catch (error) {
+      console.error("Error fetching goal photos:", error);
+      res.status(500).json({ error: "Failed to fetch goal photos" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -43,10 +43,10 @@ export default function Sidebar({ isOpen = true, onItemClick }: SidebarProps) {
       
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-slate-800 shadow-sm border-r border-slate-200 dark:border-slate-700 transition-all duration-300",
+        "fixed lg:static inset-y-0 left-0 z-50 w-64 backdrop-blur-xl shadow-sm border-r transition-all duration-300",
         "lg:translate-x-0", // Always visible on desktop
         isOpen ? "translate-x-0" : "-translate-x-full" // Mobile slide animation
-      )}>
+      )} style={{backgroundColor: '#111418', borderColor: '#3a3f47'}}>
         <div className="p-6 pt-20 lg:pt-6"> {/* Extra top padding on mobile to account for navbar */}
           <nav className="space-y-2">
             {navItems.map((item) => {
@@ -60,9 +60,26 @@ export default function Sidebar({ isOpen = true, onItemClick }: SidebarProps) {
                     className={cn(
                       "flex items-center space-x-3 px-3 py-3 lg:py-2 rounded-lg font-medium transition-colors duration-200 cursor-pointer",
                       isActive 
-                        ? "bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300" 
-                        : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        ? "border" 
+                        : "text-white"
                     )}
+                    style={{
+                      backgroundColor: isActive ? '#FFD300' : 'transparent',
+                      borderColor: isActive ? '#FFD300' : 'transparent',
+                      color: isActive ? '#090C11' : undefined
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = '#111418';
+                        e.currentTarget.style.color = '#FFD300';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'white';
+                      }
+                    }}
                   >
                     <Icon className="w-5 h-5" />
                     <span>{item.label}</span>

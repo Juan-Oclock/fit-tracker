@@ -88,14 +88,14 @@ function AuthenticatedLayout({
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+      <div className="min-h-screen" style={{backgroundColor: '#090C11'}}>
         {children}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+    <div className="min-h-screen" style={{backgroundColor: '#090C11'}}>
       <Navbar 
         onMenuToggle={onMenuToggle}
         isMobileMenuOpen={isMobileMenuOpen}

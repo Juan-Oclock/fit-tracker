@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { getStorage } from "./storage";
+import { isAuthenticated } from "./replitAuth";
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -78,3 +80,6 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+
+// Fix the goal photo routes (move them inside the registerRoutes function)
+// Remove the standalone routes at the bottom and add them to routes.ts instead

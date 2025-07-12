@@ -4,6 +4,8 @@ import {
   workoutExercises, 
   personalRecords,
   users,
+  monthlyGoals,
+  goalPhotos,
   type Exercise, 
   type InsertExercise,
   type Workout,
@@ -17,7 +19,12 @@ import {
   type WorkoutStats,
   type ExerciseStats,
   type User,
-  type UpsertUser
+  type UpsertUser,
+  type MonthlyGoal,
+  type InsertMonthlyGoal,
+  type MonthlyGoalData,
+  type GoalPhoto,
+  type InsertGoalPhoto
 } from "@shared/schema";
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
@@ -61,6 +68,19 @@ export interface IStorage {
   // Analytics methods
   getWorkoutStats(userId: string): Promise<WorkoutStats>;
   getExerciseStats(userId: string): Promise<ExerciseStats[]>;
+
+  // Monthly Goal methods
+  getMonthlyGoal(userId: string, month: number, year: number): Promise<MonthlyGoal | undefined>;
+  upsertMonthlyGoal(userId: string, month: number, year: number, targetWorkouts: number): Promise<MonthlyGoal>;
+  getMonthlyGoalData(userId: string, month: number, year: number): Promise<MonthlyGoalData>;
+
+  // Goal Photos methods
+  createGoalPhoto(userId: string, month: number, year: number, imageUrl: string, type: 'before' | 'progress' | 'after', description?: string): Promise<GoalPhoto>;
+  getGoalPhotos(userId: string, month: number, year: number): Promise<GoalPhoto[]>;
+  getBeforePhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined>;
+  getLatestPhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined>;
+  async deleteGoalPhoto(id: number, userId: string): Promise<boolean>;
+  updateGoalPhoto(id: number, userId: string, description?: string): Promise<GoalPhoto | undefined>;
 }
 
 // Database connection - only initialize if DATABASE_URL is valid
@@ -85,9 +105,13 @@ const initializeDatabase = () => {
 
 export class PostgresStorage implements IStorage {
   private isInitialized = false;
+  private monthlyGoals: Map<string, MonthlyGoal>;
 
   constructor() {
-    // Don't initialize in constructor to avoid blocking
+    this.monthlyGoals = new Map();
+
+    // Initialize with common exercises
+    this.initializeDefaultExercises();
   }
 
   private async ensureInitialized() {
@@ -386,9 +410,160 @@ export class PostgresStorage implements IStorage {
 
     return stats;
   }
+
+  // Monthly Goal methods
+  async getMonthlyGoal(userId: string, month: number, year: number): Promise<MonthlyGoal | undefined> {
+    const [goal] = await db.select().from(monthlyGoals).where(
+      and(
+        eq(monthlyGoals.userId, userId),
+        eq(monthlyGoals.month, month),
+        eq(monthlyGoals.year, year)
+      )
+    );
+    return goal;
+  }
+
+  async upsertMonthlyGoal(userId: string, month: number, year: number, targetWorkouts: number): Promise<MonthlyGoal> {
+    const [goal] = await db
+      .insert(monthlyGoals)
+      .values({
+        userId,
+        month,
+        year,
+        targetWorkouts,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .onConflictDoUpdate({
+        target: [monthlyGoals.userId, monthlyGoals.month, monthlyGoals.year],
+        set: {
+          targetWorkouts,
+          updatedAt: new Date()
+        }
+      })
+      .returning();
+    return goal;
+  }
+
+  async getMonthlyGoalData(userId: string, month: number, year: number): Promise<MonthlyGoalData> {
+    const goal = await this.getMonthlyGoal(userId, month, year);
+    
+    // Get workouts for the month
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+    
+    const monthWorkouts = await db
+      .select()
+      .from(workouts)
+      .where(
+        and(
+          eq(workouts.userId, userId),
+          gte(workouts.date, startDate),
+          lte(workouts.date, endDate)
+        )
+      );
+    
+    const workoutDates = monthWorkouts.map(w => w.date.toISOString());
+    const completedWorkouts = monthWorkouts.length;
+    
+    // Get goal photos
+    const beforePhoto = await this.getBeforePhoto(userId, month, year);
+    const latestPhoto = await this.getLatestPhoto(userId, month, year);
+    
+    return {
+      month,
+      year,
+      targetWorkouts: goal?.targetWorkouts || 0,
+      completedWorkouts,
+      workoutDates,
+      completionPercentage: goal?.targetWorkouts ? (completedWorkouts / goal.targetWorkouts) * 100 : 0,
+      beforePhoto,
+      latestPhoto
+    };
+  }
+
+  // Goal Photos methods
+  async createGoalPhoto(userId: string, month: number, year: number, imageUrl: string, type: 'before' | 'progress' | 'after', description?: string): Promise<GoalPhoto> {
+    const [photo] = await db
+      .insert(goalPhotos)
+      .values({
+        userId,
+        month,
+        year,
+        imageUrl,
+        type,
+        description,
+        timestamp: new Date()
+      })
+      .returning();
+    return photo;
+  }
+
+  async getGoalPhotos(userId: string, month: number, year: number): Promise<GoalPhoto[]> {
+    return await db
+      .select()
+      .from(goalPhotos)
+      .where(
+        and(
+          eq(goalPhotos.userId, userId),
+          eq(goalPhotos.month, month),
+          eq(goalPhotos.year, year)
+        )
+      )
+      .orderBy(goalPhotos.timestamp);
+  }
+
+  async getBeforePhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined> {
+    const [photo] = await db
+      .select()
+      .from(goalPhotos)
+      .where(
+        and(
+          eq(goalPhotos.userId, userId),
+          eq(goalPhotos.month, month),
+          eq(goalPhotos.year, year),
+          eq(goalPhotos.type, 'before')
+        )
+      )
+      .orderBy(goalPhotos.timestamp)
+      .limit(1);
+    return photo;
+  }
+
+  async getLatestPhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined> {
+    const [photo] = await db
+      .select()
+      .from(goalPhotos)
+      .where(
+        and(
+          eq(goalPhotos.userId, userId),
+          eq(goalPhotos.month, month),
+          eq(goalPhotos.year, year)
+        )
+      )
+      .orderBy(desc(goalPhotos.timestamp))
+      .limit(1);
+    return photo;
+  }
+
+  async deleteGoalPhoto(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(goalPhotos).where(and(eq(goalPhotos.id, id), eq(goalPhotos.userId, userId)));
+    return result.rowsAffected > 0;
+  }
+
+  async updateGoalPhoto(id: number, userId: string, description?: string): Promise<GoalPhoto | undefined> {
+    const [photo] = await db
+      .update(goalPhotos)
+      .set({ description })
+      .where(and(eq(goalPhotos.id, id), eq(goalPhotos.userId, userId)))
+      .returning();
+    return photo;
+  }
 }
 
 export class MemStorage implements IStorage {
+  private monthlyGoals: Map<string, MonthlyGoal>;
+  private goalPhotos: Map<string, GoalPhoto>;
   private users: Map<string, User>;
   private exercises: Map<number, Exercise>;
   private workouts: Map<number, Workout>;
@@ -398,8 +573,11 @@ export class MemStorage implements IStorage {
   private currentWorkoutId: number;
   private currentWorkoutExerciseId: number;
   private currentRecordId: number;
+  private currentGoalPhotoId: number;
 
   constructor() {
+    this.monthlyGoals = new Map();
+    this.goalPhotos = new Map();
     this.users = new Map();
     this.exercises = new Map();
     this.workouts = new Map();
@@ -409,6 +587,7 @@ export class MemStorage implements IStorage {
     this.currentWorkoutId = 1;
     this.currentWorkoutExerciseId = 1;
     this.currentRecordId = 1;
+    this.currentGoalPhotoId = 1;
 
     // Initialize with common exercises
     this.initializeDefaultExercises();
@@ -825,6 +1004,111 @@ export class MemStorage implements IStorage {
     }
 
     return Array.from(exerciseMap.values());
+  }
+
+  // Monthly Goal methods
+  async getMonthlyGoal(userId: string, month: number, year: number): Promise<MonthlyGoal | undefined> {
+    const key = `${userId}-${year}-${month}`;
+    return this.monthlyGoals.get(key);
+  }
+
+  async upsertMonthlyGoal(userId: string, month: number, year: number, targetWorkouts: number): Promise<MonthlyGoal> {
+    const key = `${userId}-${year}-${month}`;
+    const existingGoal = this.monthlyGoals.get(key);
+    
+    const goal: MonthlyGoal = {
+      userId,
+      month,
+      year,
+      targetWorkouts,
+      createdAt: existingGoal?.createdAt || new Date(),
+      updatedAt: new Date()
+    };
+    
+    this.monthlyGoals.set(key, goal);
+    return goal;
+  }
+
+  async getMonthlyGoalData(userId: string, month: number, year: number): Promise<MonthlyGoalData> {
+    const goal = await this.getMonthlyGoal(userId, month, year);
+    
+    // Get workouts for the month
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0);
+    
+    const workouts = Array.from(this.workouts.values()).filter(w => 
+      w.userId === userId && 
+      new Date(w.date) >= startDate && 
+      new Date(w.date) <= endDate
+    );
+    
+    const workoutDates = workouts.map(w => w.date.toISOString());
+    const completedWorkouts = workouts.length;
+    
+    // Get goal photos
+    const beforePhoto = await this.getBeforePhoto(userId, month, year);
+    const latestPhoto = await this.getLatestPhoto(userId, month, year);
+    
+    return {
+      month,
+      year,
+      targetWorkouts: goal?.targetWorkouts || 0,
+      completedWorkouts,
+      workoutDates,
+      completionPercentage: goal?.targetWorkouts ? (completedWorkouts / goal.targetWorkouts) * 100 : 0,
+      beforePhoto,
+      latestPhoto
+    };
+  }
+
+  // Goal Photos methods
+  async createGoalPhoto(userId: string, month: number, year: number, imageUrl: string, type: 'before' | 'progress' | 'after', description?: string): Promise<GoalPhoto> {
+    const photo: GoalPhoto = {
+      id: this.currentGoalPhotoId++,
+      userId,
+      month,
+      year,
+      imageUrl,
+      type,
+      description: description || null,
+      timestamp: new Date()
+    };
+    
+    this.goalPhotos.set(photo.id, photo);
+    return photo;
+  }
+
+  async getGoalPhotos(userId: string, month: number, year: number): Promise<GoalPhoto[]> {
+    return Array.from(this.goalPhotos.values())
+      .filter(p => p.userId === userId && p.month === month && p.year === year)
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  }
+
+  async getBeforePhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined> {
+    return Array.from(this.goalPhotos.values())
+      .find(p => p.userId === userId && p.month === month && p.year === year && p.type === 'before');
+  }
+
+  async getLatestPhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined> {
+    const photos = Array.from(this.goalPhotos.values())
+      .filter(p => p.userId === userId && p.month === month && p.year === year)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return photos[0];
+  }
+
+  async deleteGoalPhoto(id: number, userId: string): Promise<boolean> {
+    const photo = this.goalPhotos.get(id);
+    if (!photo || photo.userId !== userId) return false;
+    return this.goalPhotos.delete(id);
+  }
+
+  async updateGoalPhoto(id: number, userId: string, description?: string): Promise<GoalPhoto | undefined> {
+    const photo = this.goalPhotos.get(id);
+    if (!photo || photo.userId !== userId) return undefined;
+    
+    const updatedPhoto = { ...photo, description: description || null };
+    this.goalPhotos.set(id, updatedPhoto);
+    return updatedPhoto;
   }
 }
 

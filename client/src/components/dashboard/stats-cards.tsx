@@ -1,6 +1,5 @@
 import { useWorkoutStats } from "@/hooks/use-workouts";
 import { Card, CardContent } from "@/components/ui/card";
-import { GoalSettingDialog } from "@/components/goal-setting-dialog";
 import { Zap, Calendar, Star, BarChart3 } from "lucide-react";
 
 export default function StatsCards() {
@@ -20,8 +19,6 @@ export default function StatsCards() {
     );
   }
 
-  const completionPercentage = stats ? Math.round((stats.thisWeek / stats.weeklyGoal) * 100) : 0;
-
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
       <Card className="transition-all duration-200 hover:shadow-md">
@@ -31,8 +28,8 @@ export default function StatsCards() {
               <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Total Workouts</p>
               <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">{stats?.totalWorkouts || 0}</p>
             </div>
-            <div className="p-2 sm:p-3 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-              <Zap className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 sm:p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
+              <Zap className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
             </div>
           </div>
           {stats && stats.totalWorkouts > 0 ? (
@@ -54,25 +51,14 @@ export default function StatsCards() {
               <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">This Week</p>
               <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">{stats?.thisWeek || 0}</p>
             </div>
-            <div className="p-2 sm:p-3 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg">
-              <Calendar className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
+            <div className="p-2 sm:p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
+              <Calendar className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
             </div>
           </div>
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center">
-              <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-                Goal: {stats?.weeklyGoal || 4}
-              </span>
-              <span className="text-sm text-slate-600 dark:text-slate-400 ml-2">
-                {completionPercentage}% complete
-              </span>
-            </div>
-            <div className="flex justify-end">
-              <GoalSettingDialog 
-                currentGoal={stats?.weeklyGoal || 4}
-                canSetNewGoal={stats?.canSetNewGoal || false}
-              />
-            </div>
+          <div className="mt-4">
+            <span className="text-sm text-slate-600 dark:text-slate-400">
+              {stats?.thisWeek === 0 ? "Start your weekly workouts!" : "Keep up the great work!"}
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -84,8 +70,8 @@ export default function StatsCards() {
               <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Personal Records</p>
               <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">{stats?.personalRecords || 0}</p>
             </div>
-            <div className="p-2 sm:p-3 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
-              <Star className="w-4 h-4 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
+            <div className="p-2 sm:p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
+              <Star className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
             </div>
           </div>
           {stats && stats.personalRecords > 0 ? (
@@ -110,8 +96,8 @@ export default function StatsCards() {
                 <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-normal ml-1">lbs</span>
               </p>
             </div>
-            <div className="p-2 sm:p-3 bg-purple-100 dark:bg-purple-900/50 rounded-lg">
-              <BarChart3 className="w-4 h-4 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400" />
+            <div className="p-2 sm:p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
+              <BarChart3 className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
             </div>
           </div>
           {stats && stats.totalVolume > 0 ? (

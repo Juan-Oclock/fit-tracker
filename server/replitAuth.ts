@@ -10,7 +10,16 @@ import MemoryStore from "memorystore";
 import { getStorage } from "./storage";
 
 if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
+  // Set default for local development
+  process.env.REPLIT_DOMAINS = "localhost:3000";
+}
+
+if (!process.env.SESSION_SECRET) {
+  process.env.SESSION_SECRET = "dev-session-secret-change-in-production";
+}
+
+if (!process.env.REPL_ID) {
+  process.env.REPL_ID = "dev-repl-id";
 }
 
 const getOidcConfig = memoize(
