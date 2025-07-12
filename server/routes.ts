@@ -368,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-  
+
     try {
       // Add proper schema validation
       const validatedData = insertMonthlyGoalSchema.parse(req.body);
@@ -377,10 +377,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storage = await getStorage();
       const goal = await storage.upsertMonthlyGoal(user.id, month, year, targetWorkouts);
       return res.json(goal);
-    } catch (error) {
+    } catch (error: any) { // Add type annotation here
       console.error("Error updating monthly goal:", error);
       // Check if it's a validation error
-      if (error.name === 'ZodError') {
+      if (error?.name === 'ZodError') {
         return res.status(400).json({ error: "Invalid input data", details: error.errors });
       }
       return res.status(500).json({ error: "Failed to update monthly goal" });
