@@ -81,8 +81,8 @@ export interface IStorage {
   getGoalPhotos(userId: string, month: number, year: number): Promise<GoalPhoto[]>;
   getBeforePhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined>;
   getLatestPhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined>;
-  deleteGoalPhoto(id: string, userId: string): Promise<boolean>;
-  updateGoalPhoto(id: string, userId: string, description?: string): Promise<GoalPhoto | undefined>;
+  deleteGoalPhoto(id: number, userId: string): Promise<boolean>;
+  updateGoalPhoto(id: number, userId: string, description?: string): Promise<GoalPhoto | undefined>;
 }
 
 // Database connection - only initialize if DATABASE_URL is valid
@@ -552,16 +552,16 @@ export class PostgresStorage implements IStorage {
     return photo;
   }
 
-  async deleteGoalPhoto(id: string, userId: string): Promise<boolean> {
-    const result = await db.delete(goalPhotos).where(and(eq(goalPhotos.id, parseInt(id)), eq(goalPhotos.userId, userId)));
+  async deleteGoalPhoto(id: number, userId: string): Promise<boolean> {
+    const result = await db.delete(goalPhotos).where(and(eq(goalPhotos.id, id), eq(goalPhotos.userId, userId)));
     return result.rowsAffected > 0;
   }
 
-  async updateGoalPhoto(id: string, userId: string, description?: string): Promise<GoalPhoto | undefined> {
+  async updateGoalPhoto(id: number, userId: string, description?: string): Promise<GoalPhoto | undefined> {
     const [photo] = await db
       .update(goalPhotos)
       .set({ description })
-      .where(and(eq(goalPhotos.id, parseInt(id)), eq(goalPhotos.userId, userId)))
+      .where(and(eq(goalPhotos.id, id), eq(goalPhotos.userId, userId)))
       .returning();
     return photo;
   }
@@ -1112,20 +1112,18 @@ export class MemStorage implements IStorage {
     return photos[0];
   }
 
-  async deleteGoalPhoto(id: string, userId: string): Promise<boolean> {
-    const numericId = parseInt(id);
-    const photo = this.goalPhotos.get(numericId);
+  async deleteGoalPhoto(id: number, userId: string): Promise<boolean> {
+    const photo = this.goalPhotos.get(id);
     if (!photo || photo.userId !== userId) return false;
-    return this.goalPhotos.delete(numericId);
+    return this.goalPhotos.delete(id);
   }
 
-  async updateGoalPhoto(id: string, userId: string, description?: string): Promise<GoalPhoto | undefined> {
-    const numericId = parseInt(id);
-    const photo = this.goalPhotos.get(numericId);
+  async updateGoalPhoto(id: number, userId: string, description?: string): Promise<GoalPhoto | undefined> {
+    const photo = this.goalPhotos.get(id);
     if (!photo || photo.userId !== userId) return undefined;
     
     const updatedPhoto = { ...photo, description: description || null };
-    this.goalPhotos.set(numericId, updatedPhoto);
+    this.goalPhotos.set(id, updatedPhoto);
     return updatedPhoto;
   }
 }
