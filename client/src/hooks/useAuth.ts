@@ -42,9 +42,12 @@ export function useAuth() {
   }
 
   const signInWithGoogle = async () => {
-    // Use current domain for redirect to maintain custom domain
-    const redirectUrl = `${window.location.origin}/auth/callback`
-    console.log('Initiating Google OAuth...')
+    // Use environment-specific URL or fallback to current origin
+    const redirectUrl = import.meta.env.VITE_APP_URL 
+      ? `${import.meta.env.VITE_APP_URL}/auth/callback`
+      : `${window.location.origin}/auth/callback`
+    
+    console.log('Google OAuth redirect URL:', redirectUrl)
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
