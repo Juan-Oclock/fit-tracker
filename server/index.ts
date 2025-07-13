@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { getStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
+import { seedCategories } from "./seed-categories"; // Add this import
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -39,6 +40,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize storage and seed categories
+  try {
+    const storage = await getStorage();
+    await storage.ensureInitialized();
+    await seedCategories(); // Add this line
+    log("Database initialized and categories seeded");
+  } catch (error) {
+    log(`Failed to initialize database: ${error}`, "error");
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {

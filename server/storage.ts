@@ -6,6 +6,7 @@ import {
   users,
   monthlyGoals,
   goalPhotos,
+  categories,
   type Exercise, 
   type InsertExercise,
   type Workout,
@@ -24,7 +25,9 @@ import {
   type InsertMonthlyGoal,
   type MonthlyGoalData,
   type GoalPhoto,
-  type InsertGoalPhoto
+  type InsertGoalPhoto,
+  type Category,
+  type InsertCategory
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -45,6 +48,7 @@ export interface IStorage {
   getExercisesByCategory(category: string): Promise<Exercise[]>;
   createExercise(exercise: InsertExercise): Promise<Exercise>;
   updateExercise(id: number, exercise: Partial<InsertExercise>): Promise<Exercise | undefined>;
+  deleteExercise(id: number): Promise<boolean>;
   searchExercises(query: string): Promise<Exercise[]>;
 
   // Workout methods
@@ -83,6 +87,12 @@ export interface IStorage {
   getLatestPhoto(userId: string, month: number, year: number): Promise<GoalPhoto | undefined>;
   deleteGoalPhoto(id: number, userId: string): Promise<boolean>;
   updateGoalPhoto(id: number, userId: string, description?: string): Promise<GoalPhoto | undefined>;
+
+  // Category methods
+  getCategories(): Promise<Category[]>;
+  createCategory(category: InsertCategory): Promise<Category>;
+  updateCategory(id: number, updateData: Partial<InsertCategory>): Promise<Category | undefined>;
+  deleteCategory(id: number): Promise<boolean>;
 }
 
 // Database connection - only initialize if DATABASE_URL is valid
@@ -207,6 +217,20 @@ export class PostgresStorage implements IStorage {
   async updateExercise(id: number, updateData: Partial<InsertExercise>): Promise<Exercise | undefined> {
     const result = await db.update(exercises).set(updateData).where(eq(exercises.id, id)).returning();
     return result[0];
+  }
+
+  async deleteExercise(id: number): Promise<boolean> {
+    // First, check if the exercise is used in any workout exercises
+    const workoutExerciseCount = await db.select({ count: drizzleSql`count(*)` })
+      .from(workoutExercises)
+      .where(eq(workoutExercises.exerciseId, id));
+    
+    if (workoutExerciseCount[0]?.count > 0) {
+      throw new Error("Cannot delete exercise that is used in workouts");
+    }
+    
+    const result = await db.delete(exercises).where(eq(exercises.id, id));
+    return result.rowsAffected > 0;
   }
 
   async searchExercises(query: string): Promise<Exercise[]> {
@@ -565,6 +589,31 @@ export class PostgresStorage implements IStorage {
       .returning();
     return photo;
   }
+
+  // Category methods
+  async getCategories(): Promise<Category[]> {
+    return await db.select().from(categories).orderBy(categories.isDefault.desc(), categories.name);
+  }
+
+  async createCategory(category: InsertCategory): Promise<Category> {
+    const [newCategory] = await db.insert(categories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateCategory(id: number, updateData: Partial<InsertCategory>): Promise<Category | undefined> {
+    const [updatedCategory] = await db
+      .update(categories)
+      .set(updateData)
+      .where(eq(categories.id, id))
+      .returning();
+    return updatedCategory;
+  }
+
+  async deleteCategory(id: number): Promise<boolean> {
+    // Remove the isDefault check to allow deleting all categories
+    const result = await db.delete(categories).where(eq(categories.id, id));
+    return result.rowCount > 0;
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -575,11 +624,13 @@ export class MemStorage implements IStorage {
   private workouts: Map<number, Workout>;
   private workoutExercises: Map<number, WorkoutExercise>;
   private personalRecords: Map<number, PersonalRecord>;
+  private categories: Map<number, Category>;
   private currentExerciseId: number;
   private currentWorkoutId: number;
   private currentWorkoutExerciseId: number;
   private currentRecordId: number;
   private currentGoalPhotoId: number;
+  private currentCategoryId: number;
 
   constructor() {
     this.monthlyGoals = new Map();
@@ -589,11 +640,13 @@ export class MemStorage implements IStorage {
     this.workouts = new Map();
     this.workoutExercises = new Map();
     this.personalRecords = new Map();
+    this.categories = new Map();
     this.currentExerciseId = 1;
     this.currentWorkoutId = 1;
     this.currentWorkoutExerciseId = 1;
     this.currentRecordId = 1;
     this.currentGoalPhotoId = 1;
+    this.currentCategoryId = 1;
 
     // Initialize with common exercises
     this.initializeDefaultExercises();
@@ -742,19 +795,24 @@ export class MemStorage implements IStorage {
   }
 
   async updateExercise(id: number, updateData: Partial<InsertExercise>): Promise<Exercise | undefined> {
-    const existingExercise = this.exercises.get(id);
-    if (!existingExercise) return undefined;
-
-    const updatedExercise: Exercise = {
-      ...existingExercise,
-      ...updateData,
-      instructions: updateData.instructions !== undefined ? updateData.instructions : existingExercise.instructions,
-      equipment: updateData.equipment !== undefined ? updateData.equipment : existingExercise.equipment,
-      imageUrl: updateData.imageUrl !== undefined ? updateData.imageUrl : existingExercise.imageUrl,
-    };
+    const exercise = this.exercises.get(id);
+    if (!exercise) return undefined;
     
+    const updatedExercise = { ...exercise, ...updateData };
     this.exercises.set(id, updatedExercise);
     return updatedExercise;
+  }
+
+  async deleteExercise(id: number): Promise<boolean> {
+    // Check if the exercise is used in any workout exercises
+    const isUsed = Array.from(this.workoutExercises.values())
+      .some(we => we.exerciseId === id);
+    
+    if (isUsed) {
+      throw new Error("Cannot delete exercise that is used in workouts");
+    }
+    
+    return this.exercises.delete(id);
   }
 
   async searchExercises(query: string): Promise<Exercise[]> {
@@ -1125,6 +1183,36 @@ export class MemStorage implements IStorage {
     const updatedPhoto = { ...photo, description: description || null };
     this.goalPhotos.set(id, updatedPhoto);
     return updatedPhoto;
+  }
+
+  // Category methods
+  async getCategories(): Promise<Category[]> {
+    return Array.from(this.categories.values()).sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  async createCategory(category: InsertCategory): Promise<Category> {
+    const id = this.currentCategoryId++;
+    const newCategory: Category = { id, ...category, createdAt: new Date() };
+    this.categories.set(id, newCategory);
+    return newCategory;
+  }
+
+  async updateCategory(id: number, updateData: Partial<InsertCategory>): Promise<Category | undefined> {
+    const category = this.categories.get(id);
+    if (!category) return undefined;
+    
+    const updatedCategory = { ...category, ...updateData };
+    this.categories.set(id, updatedCategory);
+    return updatedCategory;
+  }
+
+  async deleteCategory(id: number): Promise<boolean> {
+    // Remove the isDefault check to allow deleting all categories
+    return this.categories.delete(id);
   }
 }
 

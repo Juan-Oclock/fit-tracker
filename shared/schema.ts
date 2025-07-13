@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, jsonb, decimal, varchar, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, jsonb, decimal, varchar, index, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -202,3 +202,20 @@ export type GoalStats = {
   longestStreak: number;
   averageMonthlyCompletion: number;
 };
+
+// Add this new table after the existing tables
+export const categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"), // Add description field
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCategorySchema = createInsertSchema(categories).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Category = typeof categories.$inferSelect;
+export type InsertCategory = z.infer<typeof insertCategorySchema>;

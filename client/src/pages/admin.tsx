@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertExerciseSchema, type InsertExercise, type Exercise } from "@shared/schema";
-import { useExercises, useCreateExercise, useUpdateExercise } from "@/hooks/use-exercises";
+import { insertExerciseSchema, type InsertExercise, type Exercise, type Category } from "@shared/schema";
+import { useExercises, useCreateExercise, useUpdateExercise, useDeleteExercise } from "@/hooks/use-exercises";
+import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from "@/hooks/use-categories";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Search, Trash2, X } from "lucide-react";
+import { Plus, Edit, Trash2, Search, X } from "lucide-react";
 import { MUSCLE_GROUPS, EXERCISE_CATEGORIES, DEFAULT_MUSCLE_GROUPS, DEFAULT_EXERCISE_CATEGORIES } from "@/lib/constants";
 
 export default function Admin() {
@@ -38,6 +39,14 @@ export default function Admin() {
   const { data: exercises = [], refetch } = useExercises();
   const createExercise = useCreateExercise();
   const updateExercise = useUpdateExercise();
+  const deleteExercise = useDeleteExercise();
+  
+  // Category hooks - keep these
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  const createCategory = useCreateCategory();
+  const deleteCategory = useDeleteCategory();
+  const updateCategory = useUpdateCategory(); // Add this line
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,10 +54,12 @@ export default function Admin() {
   
   // Category and Muscle Group Management
   const [customMuscleGroups, setCustomMuscleGroups] = useState<string[]>([]);
-  const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [newMuscleGroup, setNewMuscleGroup] = useState("");
   const [newCategory, setNewCategory] = useState("");
-
+  const [newCategoryDescription, setNewCategoryDescription] = useState("");
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  
   const form = useForm<InsertExercise>({
     resolver: zodResolver(insertExerciseSchema),
     defaultValues: {
@@ -124,33 +135,84 @@ export default function Admin() {
     setIsDialogOpen(true);
   };
 
-  // Category Management Functions
-  const addCategory = () => {
-    if (newCategory.trim() && !getAllCategories().includes(newCategory.trim())) {
-      setCustomCategories(prev => [...prev, newCategory.trim()]);
-      setNewCategory("");
-      toast({
-        title: "Category added!",
-        description: `${newCategory} has been added to available categories.`,
+  // Category Management Functions (keep the async versions)
+  // Remove these lines completely:
+  // import { useUpdateCategory } from "@/hooks/use-categories";
+  // import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+  // import { Textarea } from "@/components/ui/textarea";
+  // import { Edit } from "lucide-react";
+  
+  const addCategory = async () => {
+    if (newCategory.trim() && !categories.some(cat => cat.name === newCategory.trim())) {
+      try {
+        await createCategory.mutateAsync({ 
+          name: newCategory.trim(), 
+          description: newCategoryDescription.trim() || null,
+          isDefault: false 
+        });
+        setNewCategory("");
+        setNewCategoryDescription("");
+        toast({
+          title: "Category added!",
+          description: `${newCategory} has been added to available categories.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to add category. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+  
+  // Add editCategory function
+  const editCategory = async (category: Category, newName: string, newDescription: string) => {
+    try {
+      await updateCategory.mutateAsync({
+        id: category.id,
+        data: {
+          name: newName.trim(),
+          description: newDescription.trim() || null,
+        }
       });
+      setEditingCategory(null);
+      setIsCategoryDialogOpen(false);
+      toast({
+        title: "Category updated!",
+        description: "Category has been updated successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update category. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Update removeCategory to allow deleting all categories
+  const removeCategory = async (categoryName: string) => {
+    const category = categories.find(cat => cat.name === categoryName);
+    if (category) {
+      try {
+        await deleteCategory.mutateAsync(category.id);
+        toast({
+          title: "Category removed!",
+          description: "Category has been removed from available categories.",
+        });
+      } catch (error) {
+        toast({
+          title: "Cannot delete",
+          description: "Category is in use or cannot be deleted.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const removeCategory = (category: string) => {
-    if (DEFAULT_EXERCISE_CATEGORIES.includes(category as any)) {
-      toast({
-        title: "Cannot delete",
-        description: "Default categories cannot be deleted.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setCustomCategories(prev => prev.filter(c => c !== category));
-    toast({
-      title: "Category removed!",
-      description: `${category} has been removed from available categories.`,
-    });
-  };
+  // Keep only this getAllCategories function (uses API data)
+  const getAllCategories = () => categories.map(cat => cat.name);
 
   // Muscle Group Management Functions
   const addMuscleGroup = () => {
@@ -180,8 +242,10 @@ export default function Admin() {
     });
   };
 
+  // Remove these two lines completely:
   // Get all available options
-  const getAllCategories = () => [...DEFAULT_EXERCISE_CATEGORIES, ...customCategories];
+  // const getAllCategories = () => [...DEFAULT_EXERCISE_CATEGORIES, ...customCategories];
+  
   const getAllMuscleGroups = () => [...DEFAULT_MUSCLE_GROUPS, ...customMuscleGroups];
 
   return (
@@ -399,14 +463,40 @@ export default function Admin() {
                     </Badge>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleEdit(exercise)}
-                  className="text-slate-500 hover:text-slate-700"
-                >
-                  <Edit className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEdit(exercise)}
+                    className="text-slate-500 hover:text-slate-700"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      if (window.confirm(`Are you sure you want to delete "${exercise.name}"? This action cannot be undone.`)) {
+                        try {
+                          await deleteExercise.mutateAsync(exercise.id);
+                          toast({
+                            title: "Exercise deleted",
+                            description: "The exercise has been removed from the database.",
+                          });
+                        } catch (error: any) {
+                          toast({
+                            title: "Error",
+                            description: error.message || "Failed to delete exercise. It may be used in existing workouts.",
+                            variant: "destructive",
+                          });
+                        }
+                      }
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             {(exercise.equipment || exercise.instructions) && (
@@ -448,18 +538,22 @@ export default function Admin() {
             <CardHeader>
               <CardTitle>Add New Category</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter category name (e.g., plyometrics)"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                />
-                <Button onClick={addCategory} disabled={!newCategory.trim()}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add
-                </Button>
-              </div>
+            <CardContent className="space-y-4">
+              <Input
+                placeholder="Enter category name (e.g., plyometrics)"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+              />
+              <Textarea
+                placeholder="Enter category description (optional)"
+                value={newCategoryDescription}
+                onChange={(e) => setNewCategoryDescription(e.target.value)}
+                rows={3}
+              />
+              <Button onClick={addCategory} disabled={!newCategory.trim()}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add
+              </Button>
             </CardContent>
           </Card>
 
@@ -468,20 +562,80 @@ export default function Admin() {
               <CardTitle>Current Categories</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {getAllCategories().map((category) => (
-                  <div key={category} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                    <span className="text-sm font-medium">{category.charAt(0).toUpperCase() + category.slice(1)}</span>
-                    {!DEFAULT_EXERCISE_CATEGORIES.includes(category as any) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeCategory(category)}
-                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {categories.map((category) => (
+                  <div key={category.id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-medium">{category.name.charAt(0).toUpperCase() + category.name.slice(1)}</h3>
+                        {category.description && (
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            {category.description}
+                          </p>
+                        )}
+                        {category.isDefault && (
+                          <Badge variant="secondary" className="mt-2 text-xs">Default</Badge>
+                        )}
+                      </div>
+                      <div className="flex gap-1">
+                        <Dialog open={isCategoryDialogOpen && editingCategory?.id === category.id} onOpenChange={(open) => {
+                          setIsCategoryDialogOpen(open);
+                          if (!open) setEditingCategory(null);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingCategory(category);
+                                setNewCategory(category.name);
+                                setNewCategoryDescription(category.description || "");
+                              }}
+                              className="h-6 w-6 p-0 text-blue-500 hover:text-blue-700"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Edit Category</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <Input
+                                placeholder="Category name"
+                                value={newCategory}
+                                onChange={(e) => setNewCategory(e.target.value)}
+                              />
+                              <Textarea
+                                placeholder="Category description (optional)"
+                                value={newCategoryDescription}
+                                onChange={(e) => setNewCategoryDescription(e.target.value)}
+                                rows={3}
+                              />
+                              <div className="flex gap-2">
+                                <Button 
+                                  onClick={() => editingCategory && editCategory(editingCategory, newCategory, newCategoryDescription)}
+                                  disabled={!newCategory.trim()}
+                                >
+                                  Update
+                                </Button>
+                                <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCategory(category.name)}
+                          className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -542,4 +696,71 @@ export default function Admin() {
       </Tabs>
     </div>
   );
+}
+
+const handleDeleteExercise = async (id: number, name: string) => {
+  if (window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+    try {
+      await deleteExercise.mutateAsync(id);
+      toast({
+        title: "Exercise deleted",
+        description: "The exercise has been removed from the database.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete exercise. It may be used in existing workouts.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // In the exercise list rendering section, add delete buttons:
+  {exercises?.map((exercise) => (
+    <div key={exercise.id} className="flex items-center justify-between p-4 border rounded-lg">
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="font-medium">{exercise.name}</h3>
+          <div className="flex gap-1">
+            <Badge variant="secondary" className="text-xs">
+              {exercise.category}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {exercise.muscleGroup}
+            </Badge>
+          </div>
+        </div>
+        {exercise.equipment && (
+          <p className="text-sm text-muted-foreground mb-1">
+            Equipment: {exercise.equipment}
+          </p>
+        )}
+        {exercise.instructions && (
+          <p className="text-sm text-muted-foreground">
+            {exercise.instructions}
+          </p>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setEditingExercise(exercise);
+            setIsExerciseDialogOpen(true);
+          }}
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleDeleteExercise(exercise.id, exercise.name)}
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  ))}
 }

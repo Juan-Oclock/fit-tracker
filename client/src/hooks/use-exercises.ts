@@ -53,9 +53,21 @@ export function useUpdateExercise() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, exercise }: { id: number; exercise: Partial<InsertExercise> }) => {
-      const response = await apiRequest("PUT", `/api/exercises/${id}`, exercise);
-      return response.json();
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Exercise> }) => {
+      return await apiRequest("PUT", `/api/exercises/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exercises"] });
+    },
+  });
+}
+
+export function useDeleteExercise() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/exercises/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/exercises"] });

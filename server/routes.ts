@@ -9,7 +9,8 @@ import {
   insertWorkoutExerciseSchema, 
   insertPersonalRecordSchema,
   updateGoalSchema,
-  insertMonthlyGoalSchema // Add this import
+  insertMonthlyGoalSchema, // Add this import
+  insertCategorySchema // Add this line
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -128,6 +129,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(exercise);
     } catch (error) {
       res.status(400).json({ message: "Invalid exercise data" });
+    }
+  });
+
+  app.delete("/api/exercises/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteExercise(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Exercise not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      if (error.message === "Cannot delete exercise that is used in workouts") {
+        res.status(400).json({ message: "Cannot delete exercise that is used in workouts" });
+      } else {
+        res.status(500).json({ message: "Failed to delete exercise" });
+      }
+    }
+  });
+
+  // Add these routes after the exercise routes
+  // Category routes (public - no auth required for reading)
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const categories = await storage.getCategories();
+      res.json(categories);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+  
+  app.post("/api/categories", async (req, res) => {
+    try {
+      console.log("POST /api/categories - Request body:", req.body);
+      const storage = await getStorage();
+      console.log("Storage obtained successfully");
+      const validatedData = insertCategorySchema.parse(req.body);
+      console.log("Data validated successfully:", validatedData);
+      const category = await storage.createCategory(validatedData);
+      console.log("Category created successfully:", category);
+      res.status(201).json(category);
+    } catch (error) {
+      console.error("Error in POST /api/categories:", error);
+      res.status(400).json({ message: "Invalid category data or category already exists" });
+    }
+  });
+  
+  app.put("/api/categories/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const id = parseInt(req.params.id);
+      const validatedData = insertCategorySchema.partial().parse(req.body);
+      const category = await storage.updateCategory(id, validatedData);
+      
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      
+      res.json(category);
+    } catch (error) {
+      console.error("Error updating category:", error);
+      res.status(400).json({ message: "Invalid category data" });
+    }
+  });
+  
+  app.delete("/api/categories/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteCategory(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Category not found or cannot delete default category" });
+      }
+      
+      res.json({ message: "Category deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete category" });
     }
   });
 
