@@ -145,7 +145,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(204).send();
     } catch (error) {
-      if (error.message === "Cannot delete exercise that is used in workouts") {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage === "Cannot delete exercise that is used in workouts") {
         res.status(400).json({ message: "Cannot delete exercise that is used in workouts" });
       } else {
         res.status(500).json({ message: "Failed to delete exercise" });
@@ -162,7 +163,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(categories);
     } catch (error) {
       console.error("Error fetching categories:", error);
-      res.status(500).json({ message: "Failed to fetch categories", error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ message: "Failed to fetch categories", error: errorMessage });
     }
   });
   

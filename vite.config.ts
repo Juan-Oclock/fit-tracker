@@ -29,6 +29,16 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu'],
+          utils: ['date-fns', 'clsx']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
   },
   server: {
     fs: {

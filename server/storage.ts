@@ -1281,7 +1281,13 @@ export class MemStorage implements IStorage {
 
   async createCategory(category: InsertCategory): Promise<Category> {
     const id = this.currentCategoryId++;
-    const newCategory: Category = { id, ...category, createdAt: new Date() };
+    const newCategory: Category = { 
+      id, 
+      ...category, 
+      createdAt: new Date(),
+      description: category.description ?? null,
+      isDefault: category.isDefault ?? null
+    };
     this.categories.set(id, newCategory);
     return newCategory;
   }
@@ -1303,7 +1309,11 @@ export class MemStorage implements IStorage {
   // Quote methods
   async getQuotes(): Promise<Quote[]> {
     return Array.from(this.quotes.values())
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      .sort((a, b) => {
+        const aTime = a.createdAt?.getTime() ?? 0;
+        const bTime = b.createdAt?.getTime() ?? 0;
+        return aTime - bTime;
+      });
   }
 
   async getQuoteById(id: number): Promise<Quote | undefined> {
@@ -1315,7 +1325,10 @@ export class MemStorage implements IStorage {
       ...insertQuote,
       id: this.currentQuoteId++,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      category: insertQuote.category ?? null,
+      author: insertQuote.author ?? null,
+      isActive: insertQuote.isActive ?? null
     };
     this.quotes.set(quote.id, quote);
     return quote;
