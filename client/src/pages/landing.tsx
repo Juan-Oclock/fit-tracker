@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -184,6 +185,27 @@ export default function Landing() {
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
       />
+      
+      {/* Footer */}
+      <footer className="border-t border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center gap-2 mb-4 md:mb-0">
+              <Dumbbell className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <span className="font-semibold text-slate-900 dark:text-white">FitTracker</span>
+            </div>
+            
+            <div className="flex items-center gap-6 text-sm text-slate-600 dark:text-slate-300">
+              <Link href="/privacy-policy">
+                <a className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  Privacy Policy
+                </a>
+              </Link>
+              <span>© 2024 FitTracker. All rights reserved.</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

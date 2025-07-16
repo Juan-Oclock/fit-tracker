@@ -15,6 +15,7 @@ import Settings from "@/pages/settings";
 import Admin from "@/pages/admin";
 import Landing from "@/pages/landing";
 import AuthCallback from "@/pages/auth-callback";
+import PrivacyPolicy from "@/pages/privacy-policy";
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
@@ -26,6 +27,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth/callback" component={AuthCallback} />
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (

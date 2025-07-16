@@ -1,6 +1,6 @@
 import { useWorkoutStats } from "@/hooks/use-workouts";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Calendar, Star, BarChart3 } from "lucide-react";
+import { Zap, Calendar, Star, MessageCircle } from "lucide-react";
 
 export default function StatsCards() {
   const { data: stats, isLoading } = useWorkoutStats();
@@ -88,25 +88,30 @@ export default function StatsCards() {
 
       <Card className="transition-all duration-200 hover:shadow-md">
         <CardContent className="p-3 sm:p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Total Volume</p>
-              <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white">
-                {stats?.totalVolume?.toLocaleString() || 0}
-                <span className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-normal ml-1">lbs</span>
-              </p>
+              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Quote of the Day</p>
             </div>
             <div className="p-2 sm:p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
-              <BarChart3 className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
+              <MessageCircle className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
             </div>
           </div>
-          {stats && stats.totalVolume > 0 ? (
-            <div className="mt-4 flex items-center">
-              <span className="text-sm text-slate-600 dark:text-slate-400">Keep pushing weight!</span>
+          {stats?.dailyQuote ? (
+            <div className="space-y-2">
+              <p className="text-sm text-slate-700 dark:text-slate-300 italic leading-relaxed">
+                "{stats.dailyQuote.text}"
+              </p>
+              {stats.dailyQuote.author && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  — {stats.dailyQuote.author}
+                </p>
+              )}
             </div>
           ) : (
-            <div className="mt-4 flex items-center">
-              <span className="text-sm text-slate-600 dark:text-slate-400">Start lifting to track volume</span>
+            <div className="mt-4">
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                Stay motivated!
+              </span>
             </div>
           )}
         </CardContent>

@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createWorkoutWithExercisesSchema, type CreateWorkoutWithExercises, type InsertWorkoutExercise } from "@shared/schema";
 import { useCreateWorkout } from "@/hooks/use-workouts";
 import { useExercises } from "@/hooks/use-exercises";
+import { useCategories } from "@/hooks/use-categories";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ export default function NewWorkout() {
   const { toast } = useToast();
   const createWorkout = useCreateWorkout();
   const { data: exercises = [] } = useExercises();
+  const { data: categories = [] } = useCategories();
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [workoutImage, setWorkoutImage] = useState<string | null>(null);
 
@@ -120,10 +122,11 @@ export default function NewWorkout() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="strength">Strength</SelectItem>
-                              <SelectItem value="cardio">Cardio</SelectItem>
-                              <SelectItem value="flexibility">Flexibility</SelectItem>
-                              <SelectItem value="mixed">Mixed</SelectItem>
+                              {categories.map((category) => (
+                                <SelectItem key={category.id} value={category.name.toLowerCase()}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -152,29 +155,7 @@ export default function NewWorkout() {
                     />
                   </div>
 
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes (Optional)</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Add any notes about this workout..."
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <ImageUpload
-                    onImageSelect={setWorkoutImage}
-                    currentImage={workoutImage}
-                  />
-
-                  {/* Exercises Section */}
+                  {/* Exercises Section - Moved here after Category and Duration */}
                   <div className="border-t pt-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold">Exercises</h3>
@@ -335,6 +316,30 @@ export default function NewWorkout() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Image Upload - Moved here after Exercises */}
+                  <ImageUpload
+                    onImageSelect={setWorkoutImage}
+                    currentImage={workoutImage}
+                  />
+
+                  {/* Notes - Moved to the end */}
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notes (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Add any notes about this workout..."
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <div className="flex space-x-3 pt-6">
                     <Button type="submit" disabled={createWorkout.isPending}>

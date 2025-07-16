@@ -13,8 +13,22 @@ export async function seedCategories() {
   for (const category of DEFAULT_CATEGORIES) {
     try {
       await storage.createCategory(category);
+      console.log(`Created category: ${category.name}`);
     } catch (error) {
-      // Category might already exist, continue
+      console.log(`Category ${category.name} already exists or error occurred:`, error);
     }
   }
+}
+
+// Execute the function when this file is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  seedCategories()
+    .then(() => {
+      console.log('Categories seeding completed');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('Error seeding categories:', error);
+      process.exit(1);
+    });
 }

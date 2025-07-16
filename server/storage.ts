@@ -7,6 +7,7 @@ import {
   monthlyGoals,
   goalPhotos,
   categories,
+  quotes,
   type Exercise, 
   type InsertExercise,
   type Workout,
@@ -27,11 +28,14 @@ import {
   type GoalPhoto,
   type InsertGoalPhoto,
   type Category,
-  type InsertCategory
+  type InsertCategory,
+  type Quote,
+  type InsertQuote
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 import { eq, and, gte, lte, ilike, sql as drizzleSql, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -93,6 +97,15 @@ export interface IStorage {
   createCategory(category: InsertCategory): Promise<Category>;
   updateCategory(id: number, updateData: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: number): Promise<boolean>;
+
+  // Quote methods
+  getQuotes(): Promise<Quote[]>;
+  getQuoteById(id: number): Promise<Quote | undefined>;
+  createQuote(quote: InsertQuote): Promise<Quote>;
+  updateQuote(id: number, quote: Partial<InsertQuote>): Promise<Quote | undefined>;
+  deleteQuote(id: number): Promise<boolean>;
+  getDailyQuote(): Promise<Quote | null>;
+  importQuotesFromAPI(apiQuotes: InsertQuote[]): Promise<Quote[]>;
 }
 
 // Database connection - only initialize if DATABASE_URL is valid
@@ -100,13 +113,17 @@ let sql: any = null;
 let db: any = null;
 
 const initializeDatabase = () => {
-  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.startsWith('postgresql://')) {
+  if (!process.env.DATABASE_URL || 
+      (!process.env.DATABASE_URL.startsWith('postgresql://') && 
+       !process.env.DATABASE_URL.startsWith('postgres://'))) {
     console.log("Invalid or missing DATABASE_URL, skipping database initialization");
     return false;
   }
   
   try {
-    sql = neon(process.env.DATABASE_URL);
+    // Use postgres directly instead of neon
+    // Replace require with imported postgres
+    sql = postgres(process.env.DATABASE_URL);
     db = drizzle(sql);
     return true;
   } catch (error) {
@@ -131,6 +148,7 @@ export class PostgresStorage implements IStorage {
     
     try {
       await this.initializeDefaultExercises();
+      await this.initializeDefaultCategories();
       this.isInitialized = true;
     } catch (error) {
       console.log("Failed to initialize PostgreSQL storage:", error);
@@ -193,6 +211,25 @@ export class PostgresStorage implements IStorage {
 
     await db.insert(exercises).values(defaultExercises);
     console.log("Default exercises initialized in PostgreSQL");
+  }
+
+  private async initializeDefaultCategories() {
+    if (!db) throw new Error("Database not initialized");
+    
+    // Check if categories already exist
+    const existingCategories = await db.select().from(categories).limit(1);
+    if (existingCategories.length > 0) return;
+
+    // Insert default categories - only one should be default
+    const defaultCategories = [
+      { name: "strength", isDefault: true, description: "Strength training exercises" },
+      { name: "cardio", isDefault: false, description: "Cardiovascular exercises" },
+      { name: "flexibility", isDefault: false, description: "Flexibility and mobility exercises" },
+      { name: "mixed", isDefault: false, description: "Mixed workout routines" },
+    ];
+
+    await db.insert(categories).values(defaultCategories);
+    console.log("Default categories initialized in PostgreSQL");
   }
 
   async getExercises(): Promise<Exercise[]> {
@@ -400,12 +437,8 @@ export class PostgresStorage implements IStorage {
 
     const recordsCount = await db.select({ count: drizzleSql<number>`count(*)` }).from(personalRecords).where(eq(personalRecords.userId, userId));
 
-    // Calculate total volume (sum of sets * reps * weight)
-    const volumeResult = await db
-      .select({ 
-        volume: drizzleSql<number>`COALESCE(SUM(${workoutExercises.sets} * ${workoutExercises.reps} * ${workoutExercises.weight}), 0)` 
-      })
-      .from(workoutExercises);
+    // Get daily quote instead of total volume
+    const dailyQuote = await this.getDailyQuote();
 
     // Check if user can set a new goal (once per week)
     const canSetNewGoal = !user?.goalSetAt || 
@@ -415,7 +448,7 @@ export class PostgresStorage implements IStorage {
       totalWorkouts: totalWorkouts[0]?.count || 0,
       thisWeek: thisWeek[0]?.count || 0,
       personalRecords: recordsCount[0]?.count || 0,
-      totalVolume: volumeResult[0]?.volume || 0,
+      dailyQuote,
       weeklyGoal: user?.weeklyGoal || 4,
       averageDuration: 60,
       canSetNewGoal,
@@ -592,7 +625,10 @@ export class PostgresStorage implements IStorage {
 
   // Category methods
   async getCategories(): Promise<Category[]> {
-    return await db.select().from(categories).orderBy(categories.isDefault.desc(), categories.name);
+    if (!db) {
+      throw new Error("Database not initialized. Please check your DATABASE_URL environment variable.");
+    }
+    return await db.select().from(categories).orderBy(desc(categories.isDefault), categories.name);
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
@@ -614,6 +650,60 @@ export class PostgresStorage implements IStorage {
     const result = await db.delete(categories).where(eq(categories.id, id));
     return result.rowCount > 0;
   }
+
+  // Quote methods
+  async getQuotes(): Promise<Quote[]> {
+    return await db.select().from(quotes).orderBy(quotes.createdAt);
+  }
+
+  async getQuoteById(id: number): Promise<Quote | undefined> {
+    const [quote] = await db.select().from(quotes).where(eq(quotes.id, id));
+    return quote;
+  }
+
+  async createQuote(quote: InsertQuote): Promise<Quote> {
+    const [newQuote] = await db.insert(quotes).values({
+      ...quote,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    return newQuote;
+  }
+
+  async updateQuote(id: number, quote: Partial<InsertQuote>): Promise<Quote | undefined> {
+    const [updatedQuote] = await db
+      .update(quotes)
+      .set({ ...quote, updatedAt: new Date() })
+      .where(eq(quotes.id, id))
+      .returning();
+    return updatedQuote;
+  }
+
+  async deleteQuote(id: number): Promise<boolean> {
+    const result = await db.delete(quotes).where(eq(quotes.id, id));
+    return result.rowsAffected > 0;
+  }
+
+  async getDailyQuote(): Promise<Quote | null> {
+    // Get quote based on day of year for consistency
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    
+    const allQuotes = await db.select().from(quotes).orderBy(quotes.createdAt);
+    
+    if (allQuotes.length === 0) return null;
+    
+    const quoteIndex = dayOfYear % allQuotes.length;
+    return allQuotes[quoteIndex];
+  }
+
+  async importQuotesFromAPI(apiQuotes: InsertQuote[]): Promise<Quote[]> {
+    const insertedQuotes = [];
+    for (const quote of apiQuotes) {
+      const newQuote = await this.createQuote(quote);
+      insertedQuotes.push(newQuote);
+    }
+    return insertedQuotes;
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -625,12 +715,14 @@ export class MemStorage implements IStorage {
   private workoutExercises: Map<number, WorkoutExercise>;
   private personalRecords: Map<number, PersonalRecord>;
   private categories: Map<number, Category>;
+  private quotes: Map<number, Quote>;
   private currentExerciseId: number;
   private currentWorkoutId: number;
   private currentWorkoutExerciseId: number;
   private currentRecordId: number;
   private currentGoalPhotoId: number;
   private currentCategoryId: number;
+  private currentQuoteId: number;
 
   constructor() {
     this.monthlyGoals = new Map();
@@ -641,12 +733,14 @@ export class MemStorage implements IStorage {
     this.workoutExercises = new Map();
     this.personalRecords = new Map();
     this.categories = new Map();
+    this.quotes = new Map();
     this.currentExerciseId = 1;
     this.currentWorkoutId = 1;
     this.currentWorkoutExerciseId = 1;
     this.currentRecordId = 1;
     this.currentGoalPhotoId = 1;
     this.currentCategoryId = 1;
+    this.currentQuoteId = 1;
 
     // Initialize with common exercises
     this.initializeDefaultExercises();
@@ -1011,17 +1105,8 @@ export class MemStorage implements IStorage {
 
     const userRecords = Array.from(this.personalRecords.values()).filter(pr => pr.userId === userId);
 
-    const totalVolume = Array.from(this.workoutExercises.values())
-      .filter(we => {
-        const workout = this.workouts.get(we.workoutId);
-        return workout?.userId === userId;
-      })
-      .reduce((sum, we) => {
-        const weight = parseFloat(we.weight || "0");
-        const sets = we.sets || 0;
-        const reps = parseInt(we.reps?.split("-")[0] || "0");
-        return sum + (weight * sets * reps);
-      }, 0);
+    // Get daily quote instead of total volume
+    const dailyQuote = await this.getDailyQuote();
 
     // Check if user can set a new goal (once per week)
     const canSetNewGoal = !user?.goalSetAt || 
@@ -1031,7 +1116,7 @@ export class MemStorage implements IStorage {
       totalWorkouts: userWorkouts.length,
       thisWeek: thisWeekWorkouts.length,
       personalRecords: userRecords.length,
-      totalVolume,
+      dailyQuote,
       weeklyGoal: user?.weeklyGoal || 4,
       averageDuration: userWorkouts.length > 0 
         ? userWorkouts.reduce((sum, w) => sum + (w.duration || 0), 0) / userWorkouts.length 
@@ -1214,6 +1299,61 @@ export class MemStorage implements IStorage {
     // Remove the isDefault check to allow deleting all categories
     return this.categories.delete(id);
   }
+
+  // Quote methods
+  async getQuotes(): Promise<Quote[]> {
+    return Array.from(this.quotes.values())
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async getQuoteById(id: number): Promise<Quote | undefined> {
+    return this.quotes.get(id);
+  }
+
+  async createQuote(insertQuote: InsertQuote): Promise<Quote> {
+    const quote: Quote = {
+      ...insertQuote,
+      id: this.currentQuoteId++,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.quotes.set(quote.id, quote);
+    return quote;
+  }
+
+  async updateQuote(id: number, updateData: Partial<InsertQuote>): Promise<Quote | undefined> {
+    const quote = this.quotes.get(id);
+    if (!quote) return undefined;
+    
+    const updatedQuote = { ...quote, ...updateData, updatedAt: new Date() };
+    this.quotes.set(id, updatedQuote);
+    return updatedQuote;
+  }
+
+  async deleteQuote(id: number): Promise<boolean> {
+    return this.quotes.delete(id);
+  }
+
+  async getDailyQuote(): Promise<Quote | null> {
+    // Get quote based on day of year for consistency
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    
+    const allQuotes = Array.from(this.quotes.values());
+    
+    if (allQuotes.length === 0) return null;
+    
+    const quoteIndex = dayOfYear % allQuotes.length;
+    return allQuotes[quoteIndex];
+  }
+
+  async importQuotesFromAPI(apiQuotes: InsertQuote[]): Promise<Quote[]> {
+    const insertedQuotes = [];
+    for (const quote of apiQuotes) {
+      const newQuote = await this.createQuote(quote);
+      insertedQuotes.push(newQuote);
+    }
+    return insertedQuotes;
+  }
 }
 
 // Manual migration function since drizzle-kit migrate is failing
@@ -1290,6 +1430,30 @@ async function ensureTablesExist() {
       );
     `;
     
+    // Add the missing categories table
+    await sql`
+      CREATE TABLE IF NOT EXISTS categories (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        is_default BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    
+    // Add the missing quotes table
+    await sql`
+      CREATE TABLE IF NOT EXISTS quotes (
+        id SERIAL PRIMARY KEY,
+        text TEXT NOT NULL,
+        author VARCHAR(100),
+        category VARCHAR(50) DEFAULT 'motivation',
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    
     console.log("Database tables ensured");
   } catch (error) {
     console.log("Tables may already exist:", error);
@@ -1302,7 +1466,9 @@ let storageInstance: IStorage | null = null;
 const initStorage = async (): Promise<IStorage> => {
   if (storageInstance) return storageInstance;
   
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgresql://')) {
+  if (process.env.DATABASE_URL && 
+      (process.env.DATABASE_URL.startsWith('postgresql://') || 
+       process.env.DATABASE_URL.startsWith('postgres://'))) {
     try {
       const dbInitialized = initializeDatabase();
       if (dbInitialized) {
@@ -1329,7 +1495,6 @@ export const getStorage = async (): Promise<IStorage> => {
     return storageInstance;
   }
   
-  console.log("Using memory storage for reliable operation");
-  storageInstance = new MemStorage();
-  return storageInstance;
+  // Call initStorage to properly initialize PostgreSQL or fallback to memory
+  return await initStorage();
 };

@@ -9,8 +9,9 @@ import {
   insertWorkoutExerciseSchema, 
   insertPersonalRecordSchema,
   updateGoalSchema,
-  insertMonthlyGoalSchema, // Add this import
-  insertCategorySchema // Add this line
+  insertMonthlyGoalSchema,
+  insertCategorySchema,
+  insertQuoteSchema // Add this missing import
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -160,7 +161,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categories = await storage.getCategories();
       res.json(categories);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch categories" });
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ message: "Failed to fetch categories", error: error.message });
     }
   });
   
@@ -472,6 +474,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add after the monthly goals routes around line 388
+  // Quote routes (admin only for CRUD, public for daily quote)
+  app.get("/api/quotes", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const quotes = await storage.getQuotes();
+      res.json(quotes);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch quotes" });
+    }
+  });
+
+  app.get("/api/quotes/daily", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const quote = await storage.getDailyQuote();
+      res.json(quote);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch daily quote" });
+    }
+  });
+
+  app.post("/api/quotes", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const validatedData = insertQuoteSchema.parse(req.body);
+      const quote = await storage.createQuote(validatedData);
+      res.status(201).json(quote);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid quote data" });
+    }
+  });
+
+  app.put("/api/quotes/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const id = parseInt(req.params.id);
+      const validatedData = insertQuoteSchema.partial().parse(req.body);
+      const quote = await storage.updateQuote(id, validatedData);
+      
+      if (!quote) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+      
+      res.json(quote);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid quote data" });
+    }
+  });
+
+  app.delete("/api/quotes/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteQuote(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Quote not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete quote" });
+    }
+  });
+
+  // Future: Import quotes from API
+  app.post("/api/quotes/import", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const { source } = req.body; // 'quotable' or 'zenquotes'
+      
+      // This will be implemented later
+      res.status(501).json({ message: "Import feature coming soon" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to import quotes" });
+    }
+  });
+
   // Goal Photos routes
   app.post("/api/goals/photos", isAuthenticated, async (req: any, res) => {
     try {

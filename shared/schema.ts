@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, jsonb, decimal, varchar, index, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, jsonb, decimal, varchar, index, boolean, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -124,11 +124,34 @@ export type ExerciseStats = {
   lastPerformed: string;
 };
 
+// Add this after the existing tables
+export const quotes = pgTable("quotes", {
+  id: serial("id").primaryKey(),
+  text: text("text").notNull(),
+  author: varchar("author", { length: 100 }),
+  category: varchar("category", { length: 50 }).default("motivation"), // 'motivation', 'strength', 'cardio', 'general'
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Add validation schemas
+export const insertQuoteSchema = createInsertSchema(quotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Add types
+export type Quote = typeof quotes.$inferSelect;
+export type InsertQuote = z.infer<typeof insertQuoteSchema>;
+
+// Update WorkoutStats type to replace totalVolume with quote
 export type WorkoutStats = {
   totalWorkouts: number;
   thisWeek: number;
   personalRecords: number;
-  totalVolume: number;
+  dailyQuote: Quote | null; // Replace totalVolume with this
   weeklyGoal: number;
   averageDuration: number;
   canSetNewGoal: boolean;
@@ -162,6 +185,11 @@ export const monthlyGoals = pgTable("monthly_goals", {
   completedWorkouts: integer("completed_workouts").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => {
+  return {
+    // Add unique constraint on userId, month, year combination
+    userMonthYearUnique: unique().on(table.userId, table.month, table.year),
+  };
 });
 
 // NEW: Schema validators
