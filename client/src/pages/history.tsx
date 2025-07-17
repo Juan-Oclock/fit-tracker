@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useWorkouts, useDeleteWorkout, useExportWorkouts } from "@/hooks/use-workouts";
+import { useWorkoutsWithExercises, useDeleteWorkout, useExportWorkouts } from "@/hooks/use-workouts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { ImageLightbox } from "@/components/image-lightbox";
 
 export default function History() {
   const [, setLocation] = useLocation();
-  const { data: workouts, isLoading } = useWorkouts();
+  const { data: workouts, isLoading } = useWorkoutsWithExercises();
   const deleteWorkout = useDeleteWorkout();
   const exportWorkouts = useExportWorkouts();
   const { toast } = useToast();
@@ -204,8 +204,16 @@ export default function History() {
                           </div>
                           <div className="flex items-center space-x-3">
                             <span className="text-sm text-slate-600 dark:text-slate-400 capitalize">
-                              {workout.category}
-                            </span>
+  {workout.category}
+  {workout.exercises && workout.exercises.length > 0 && (
+    <>
+      <span className="text-slate-400"> • </span>
+      <span className="text-sm text-slate-600 dark:text-slate-400">
+        {workout.exercises.map(e => e.exercise?.name).join(', ')}
+      </span>
+    </>
+  )}
+</span>
                             {workout.duration && (
                               <>
                                 <span className="text-slate-400">•</span>
@@ -221,7 +229,16 @@ export default function History() {
                         <div className="hidden sm:flex sm:items-center sm:space-x-4 text-sm text-slate-600 dark:text-slate-400">
                           <span>{format(new Date(workout.date), "MMM d, yyyy 'at' h:mm a")}</span>
                           <span>•</span>
-                          <span className="capitalize">{workout.category}</span>
+                          <span className="capitalize">{workout.category}
+  {workout.exercises && workout.exercises.length > 0 && (
+    <>
+      <span className="text-slate-400"> • </span>
+      <span>
+        {workout.exercises.map(e => e.exercise?.name).join(', ')}
+      </span>
+    </>
+  )}
+</span>
                           {workout.duration && (
                             <>
                               <span>•</span>
