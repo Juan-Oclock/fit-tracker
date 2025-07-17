@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import NewWorkout from "@/pages/new-workout";
+import EditWorkout from "@/pages/edit-workout";
 import History from "@/pages/history";
 import Exercises from "@/pages/exercises";
 import Progress from "@/pages/progress";
@@ -34,6 +35,7 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/new-workout" component={NewWorkout} />
+          <Route path="/edit-workout/:id" component={EditWorkout} />
           <Route path="/history" component={History} />
           <Route path="/exercises" component={Exercises} />
           <Route path="/progress" component={Progress} />

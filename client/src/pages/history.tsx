@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import { Calendar, Download, Filter, Search, Trash2, Edit } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { ImageLightbox } from "@/components/image-lightbox";
 
 export default function History() {
+  const [, setLocation] = useLocation();
   const { data: workouts, isLoading } = useWorkouts();
   const deleteWorkout = useDeleteWorkout();
   const exportWorkouts = useExportWorkouts();
@@ -27,7 +29,17 @@ export default function History() {
           title: "Workout deleted",
           description: "The workout has been removed from your history.",
         });
-      } catch (error) {
+      } catch (error: any) {
+        // If it's a 404 error, the workout was already deleted - treat as success
+        if (error?.status === 404 || error?.message?.includes('404') || error?.message?.includes('Not Found')) {
+          toast({
+            title: "Workout deleted",
+            description: "The workout has been removed from your history.",
+          });
+          return;
+        }
+        
+        // For other errors, show the error message
         toast({
           title: "Error",
           description: "Failed to delete workout. Please try again.",
@@ -226,7 +238,11 @@ export default function History() {
                       </div>
 
                       <div className="flex items-center justify-end space-x-2 mt-2 sm:mt-0">
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setLocation(`/edit-workout/${workout.id}`)}
+                        >
                           <Edit className="w-4 h-4" />
                         </Button>
                         <Button 

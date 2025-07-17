@@ -11,6 +11,18 @@ export function useWorkouts() {
 export function useWorkout(id: number) {
   return useQuery<WorkoutWithExercises>({
     queryKey: ["/api/workouts", id],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      const response = await fetch(`/api/workouts/${id}`, {
+        credentials: 'include',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch workout');
+      }
+      return response.json();
+    },
     enabled: !!id,
   });
 }
@@ -31,6 +43,7 @@ export function useCreateWorkout() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts-with-exercises"] }); // Add this line
       queryClient.invalidateQueries({ queryKey: ["/api/stats/workouts"] });
       // Add this line to invalidate monthly goal data for all months
       queryClient.invalidateQueries({ queryKey: ["/api/goals/monthly"] });
@@ -48,6 +61,7 @@ export function useUpdateWorkout() {
     },
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts-with-exercises"] }); // Add this line
       queryClient.invalidateQueries({ queryKey: ["/api/workouts", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/workouts"] });
     },
@@ -59,11 +73,58 @@ export function useDeleteWorkout() {
   
   return useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `/api/workouts/${id}`);
+      try {
+        await apiRequest("DELETE", `/api/workouts/${id}`);
+      } catch (error: any) {
+        // If workout is already deleted (404), treat as success
+        if (error.message?.includes('404')) {
+          return; // Silent success for already deleted workouts
+        }
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onMutate: async (deletedId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/workouts"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/stats/workouts"] });
+      
+      // Snapshot previous values
+      const previousWorkouts = queryClient.getQueryData(["/api/workouts"]);
+      const previousStats = queryClient.getQueryData(["/api/stats/workouts"]);
+      
+      // Optimistically update workouts cache
+      queryClient.setQueryData(["/api/workouts"], (old: any) => {
+        if (!old) return old;
+        return old.filter((workout: any) => workout.id !== deletedId);
+      });
+      
+      // Optimistically update stats cache
+      queryClient.setQueryData(["/api/stats/workouts"], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          totalWorkouts: Math.max(0, old.totalWorkouts - 1),
+          thisWeek: Math.max(0, old.thisWeek - 1)
+        };
+      });
+      
+      return { previousWorkouts, previousStats };
+    },
+    onError: (err, deletedId, context) => {
+      // Rollback on error
+      if (context?.previousWorkouts) {
+        queryClient.setQueryData(["/api/workouts"], context.previousWorkouts);
+      }
+      if (context?.previousStats) {
+        queryClient.setQueryData(["/api/stats/workouts"], context.previousStats);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after mutation to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["/api/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workouts-with-exercises"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats/workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals/monthly"] });
     },
   });
 }
@@ -106,3 +167,25 @@ export function useUpdateGoal() {
     },
   });
 }
+
+// Add this new hook
+import { supabase } from '@/lib/supabaseClient';
+
+export function useWorkoutsWithExercises() {
+  return useQuery<WorkoutWithExercises[], Error>({
+    queryKey: ['/api/workouts-with-exercises'],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      const response = await fetch('/api/workouts-with-exercises', {
+        credentials: 'include',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch workouts with exercises');
+      }
+      return response.json();
+    },
+  });
+}
+

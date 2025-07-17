@@ -198,10 +198,8 @@ export default function Landing() {
             </div>
             
             <div className="flex items-center gap-6 text-sm text-slate-300">
-              <Link href="/privacy-policy">
-                <a className="transition-colors" style={{ color: '#FFD300' }}>
-                  Privacy Policy
-                </a>
+              <Link href="/privacy-policy" className="transition-colors" style={{ color: '#FFD300' }}>
+                Privacy Policy
               </Link>
               <span>© 2024 FitTracker. All rights reserved.</span>
             </div>

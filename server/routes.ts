@@ -409,9 +409,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const storage = await getStorage();
       const userId = req.user.id;
+      console.log('Fetching workout stats for user:', userId);
+      
+      // Ensure user exists in storage before getting stats
+      await storage.upsertUser({
+        id: userId,
+        email: req.user.email,
+        firstName: req.user.user_metadata?.first_name || null,
+        lastName: req.user.user_metadata?.last_name || null,
+        profileImageUrl: req.user.user_metadata?.avatar_url || null,
+      });
+      
       const stats = await storage.getWorkoutStats(userId);
+      console.log('Workout stats result:', stats);
       res.json(stats);
     } catch (error) {
+      console.error("Error in /api/stats/workouts:", error);
       res.status(500).json({ message: "Failed to fetch workout stats" });
     }
   });
@@ -585,6 +598,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch goal photos" });
     }
   });
+
+  // Add this after the existing workout routes
+  app.get('/api/workouts-with-exercises', isAuthenticated, async (req: any, res) => {
+  try {
+    const storage = await getStorage(); // This line was missing!
+    const workouts = await storage.getWorkoutsWithExercises(req.user.id);
+    res.json(workouts);
+  } catch (error) {
+    console.error('Error fetching workouts with exercises:', error);
+    res.status(500).json({ error: 'Failed to fetch workouts with exercises' });
+  }
+});
 
   const httpServer = createServer(app);
   return httpServer;

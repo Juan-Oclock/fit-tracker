@@ -20,7 +20,13 @@ export default function MobileNav() {
   const [location] = useLocation();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 transition-colors duration-300">
+    <nav 
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t transition-all duration-300"
+      style={{
+        backgroundColor: '#111418',
+        borderColor: '#3a3f47'
+      }}
+    >
       <div className="flex items-center justify-around py-2">
         {navItems.map((item) => {
           const isActive = location === item.href;
@@ -30,23 +36,48 @@ export default function MobileNav() {
             <Link key={item.href} href={item.href}>
               <div className={cn(
                 "flex flex-col items-center justify-center p-2 min-w-16 transition-all duration-200",
-                isActive 
-                  ? "text-blue-600 dark:text-blue-400" 
-                  : "text-slate-600 dark:text-slate-400"
+                "text-white"
               )}>
-                <div className={cn(
-                  "p-2 rounded-lg transition-all duration-200",
-                  item.isHighlight && !isActive && "bg-blue-500 text-white",
-                  item.isHighlight && isActive && "bg-blue-600 text-white",
-                  !item.isHighlight && isActive && "bg-blue-50 dark:bg-blue-900/50",
-                  !item.isHighlight && !isActive && "hover:bg-slate-100 dark:hover:bg-slate-700"
-                )}>
+                <div 
+                  className={cn(
+                    "p-2 rounded-lg transition-all duration-200 cursor-pointer",
+                    "hover:bg-opacity-80"
+                  )}
+                  style={{
+                    backgroundColor: isActive && !item.isHighlight 
+                      ? '#757B81' // Gray tone for active state
+                      : item.isHighlight 
+                      ? '#FFD300' // Bright yellow for Workout button
+                      : 'transparent',
+                    color: isActive || item.isHighlight ? '#ffffff' : '#ffffff'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive && !item.isHighlight) {
+                      e.currentTarget.style.backgroundColor = '#1a1f26';
+                      e.currentTarget.style.color = '#FFD300';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive && !item.isHighlight) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#ffffff';
+                    }
+                  }}
+                >
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className={cn(
-                  "text-xs font-medium mt-1",
-                  item.isHighlight && "text-blue-600 dark:text-blue-400"
-                )}>
+                <span 
+                  className={cn(
+                    "text-xs font-medium mt-1 transition-colors duration-200"
+                  )}
+                  style={{
+                    color: isActive && !item.isHighlight
+                      ? '#757B81' // Gray tone for active state text
+                      : item.isHighlight 
+                      ? '#FFD300' // Bright yellow for Workout button text
+                      : '#ffffff'
+                  }}
+                >
                   {item.label}
                 </span>
               </div>

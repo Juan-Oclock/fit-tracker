@@ -150,8 +150,12 @@ export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type WorkoutStats = {
   totalWorkouts: number;
   thisWeek: number;
-  personalRecords: number;
-  dailyQuote: Quote | null; // Replace totalVolume with this
+  personalRecords: {
+    exerciseName: string;
+    weight: number;
+    category: string;
+  } | null; // Change from number to object with exercise details
+  dailyQuote: Quote | null;
   weeklyGoal: number;
   averageDuration: number;
   canSetNewGoal: boolean;

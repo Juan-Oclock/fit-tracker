@@ -1,4 +1,4 @@
-import { useWorkouts } from "@/hooks/use-workouts";
+import { useWorkoutsWithExercises } from "@/hooks/use-workouts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Zap } from "lucide-react";
 import { Link } from "wouter";
@@ -6,7 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ImageLightbox } from "@/components/image-lightbox";
 
 export default function RecentWorkouts() {
-  const { data: workouts, isLoading } = useWorkouts();
+  const { data: workouts, isLoading } = useWorkoutsWithExercises();
 
   const recentWorkouts = workouts?.slice(0, 3) || [];
 
@@ -86,7 +86,9 @@ export default function RecentWorkouts() {
                   <p className="text-sm font-medium text-slate-900 dark:text-white">
                     {workout.duration ? `${workout.duration}m` : "No duration"}
                   </p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 capitalize">{workout.category}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Exercise: {workout.exercises && workout.exercises.length > 0 ? workout.exercises.map(e => e.exercise?.name).join(', ') : 'None'}
+                  </p>
                 </div>
               </div>
             ))}

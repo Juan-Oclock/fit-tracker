@@ -36,7 +36,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { neon } from "@neondatabase/serverless";
 import postgres from "postgres";
-import { eq, and, gte, lte, ilike, sql as drizzleSql, desc } from "drizzle-orm";
+import { eq, and, gte, lte, lt, ilike, sql as drizzleSql, desc, countDistinct } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -57,6 +57,7 @@ export interface IStorage {
 
   // Workout methods
   getWorkouts(userId: string): Promise<Workout[]>;
+  getWorkoutsWithExercises(userId: string): Promise<WorkoutWithExercises[]>;
   getWorkoutById(id: number, userId: string): Promise<WorkoutWithExercises | undefined>;
   getWorkoutsByDateRange(startDate: string, endDate: string, userId: string): Promise<Workout[]>;
   createWorkout(workout: InsertWorkout, userId: string): Promise<Workout>;
@@ -278,6 +279,36 @@ export class PostgresStorage implements IStorage {
     return await db.select().from(workouts).where(eq(workouts.userId, userId)).orderBy(desc(workouts.date));
   }
 
+  async getWorkoutsWithExercises(userId: string): Promise<WorkoutWithExercises[]> {
+    const workoutList = await db.select().from(workouts).where(eq(workouts.userId, userId)).orderBy(desc(workouts.date));
+    
+    const workoutsWithExercises = [];
+    for (const workout of workoutList) {
+      const exerciseList = await db
+        .select({
+          id: workoutExercises.id,
+          workoutId: workoutExercises.workoutId,
+          exerciseId: workoutExercises.exerciseId,
+          sets: workoutExercises.sets,
+          reps: workoutExercises.reps,
+          weight: workoutExercises.weight,
+          restTime: workoutExercises.restTime,
+          notes: workoutExercises.notes,
+          exercise: exercises
+        })
+        .from(workoutExercises)
+        .leftJoin(exercises, eq(workoutExercises.exerciseId, exercises.id))
+        .where(eq(workoutExercises.workoutId, workout.id));
+      
+      workoutsWithExercises.push({
+        ...workout,
+        exercises: exerciseList
+      });
+    }
+    
+    return workoutsWithExercises;
+  }
+
   async getWorkoutById(id: number, userId: string): Promise<WorkoutWithExercises | undefined> {
     const workout = await db.select().from(workouts).where(and(eq(workouts.id, id), eq(workouts.userId, userId)));
     if (workout.length === 0) return undefined;
@@ -426,18 +457,77 @@ export class PostgresStorage implements IStorage {
     const totalWorkouts = await db.select({ count: drizzleSql<number>`count(*)` }).from(workouts).where(eq(workouts.userId, userId));
     
     const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
-    startOfWeek.setHours(0, 0, 0, 0);
-    
+    // --- UTC week calculation ---
+    // Use Monday as start of week (ISO standard)
+    const utcDayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const utcDaysToSubtract = utcDayOfWeek === 0 ? 6 : utcDayOfWeek - 1;
+    const startOfWeek = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - utcDaysToSubtract,
+      0, 0, 0, 0
+    ));
+    const endOfWeek = new Date(Date.UTC(
+      startOfWeek.getUTCFullYear(),
+      startOfWeek.getUTCMonth(),
+      startOfWeek.getUTCDate() + 7,
+      0, 0, 0, 0
+    ));
+
+    console.log('UTC Week range:', { startOfWeek, endOfWeek, now });
+
+    // Add this before the thisWeek query
+    const allUserWorkouts = await db.select().from(workouts).where(eq(workouts.userId, userId));
+    console.log('All user workouts:', allUserWorkouts.map(w => ({ id: w.id, date: w.date })));
+    console.log('UTC week calculation:', { now, startOfWeek, utcDayOfWeek, utcDaysToSubtract });
+
     const thisWeek = await db
       .select({ count: drizzleSql<number>`count(*)` })
       .from(workouts)
-      .where(and(gte(workouts.date, startOfWeek), eq(workouts.userId, userId)));
+      .where(and(
+        gte(workouts.date, startOfWeek),
+        lt(workouts.date, endOfWeek),
+        eq(workouts.userId, userId)
+      ));
 
-    const recordsCount = await db.select({ count: drizzleSql<number>`count(*)` }).from(personalRecords).where(eq(personalRecords.userId, userId));
+    console.log('This week count:', thisWeek[0]?.count);
 
-    // Get daily quote instead of total volume
+    // Find the heaviest exercise performed by the user
+    // Ultra-safe approach: use TRY_CAST or handle in application
+    const heaviestExerciseResult = await db
+      .select({
+        exerciseName: exercises.name,
+        weight: workoutExercises.weight,
+        category: exercises.category
+      })
+      .from(workoutExercises)
+      .innerJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
+      .innerJoin(exercises, eq(workoutExercises.exerciseId, exercises.id))
+      .where(and(
+        eq(workouts.userId, userId),
+        drizzleSql`${workoutExercises.weight} IS NOT NULL`,
+        drizzleSql`${workoutExercises.weight} != 0`
+      ));
+
+    // Process in JavaScript to find the heaviest
+    let heaviestExercise = null;
+    let maxWeight = 0;
+
+    for (const exercise of heaviestExerciseResult) {
+      const weight = parseFloat(exercise.weight);
+      if (!isNaN(weight) && isFinite(weight) && weight > maxWeight) {
+        maxWeight = weight;
+        heaviestExercise = {
+          exerciseName: exercise.exerciseName,
+          weight: weight,
+          category: exercise.category
+        };
+      }
+    }
+
+    const personalRecords = heaviestExercise;
+
+    // Get daily quote
     const dailyQuote = await this.getDailyQuote();
 
     // Check if user can set a new goal (once per week)
@@ -447,7 +537,7 @@ export class PostgresStorage implements IStorage {
     return {
       totalWorkouts: totalWorkouts[0]?.count || 0,
       thisWeek: thisWeek[0]?.count || 0,
-      personalRecords: recordsCount[0]?.count || 0,
+      personalRecords,
       dailyQuote,
       weeklyGoal: user?.weeklyGoal || 4,
       averageDuration: 60,
@@ -460,15 +550,50 @@ export class PostgresStorage implements IStorage {
       .select({
         exerciseId: exercises.id,
         exerciseName: exercises.name,
-        totalVolume: drizzleSql<number>`COALESCE(SUM(${workoutExercises.sets} * ${workoutExercises.reps} * ${workoutExercises.weight}), 0)`,
-        maxWeight: drizzleSql<number>`COALESCE(MAX(${workoutExercises.weight}), 0)`,
-        totalSets: drizzleSql<number>`COALESCE(SUM(${workoutExercises.sets}), 0)`,
-        lastPerformed: drizzleSql<string>`COALESCE(MAX(${workouts.date}), '')`
+        totalVolume: drizzleSql<number>`COALESCE(SUM(
+          CASE 
+            WHEN ${workoutExercises.weight} IS NOT NULL 
+            AND ${workoutExercises.weight} != '' 
+            AND ${workoutExercises.reps} IS NOT NULL 
+            AND ${workoutExercises.reps} != '' 
+            AND ${workoutExercises.sets} IS NOT NULL
+            AND ${workoutExercises.sets} != ''
+            THEN CAST(${workoutExercises.sets} AS DECIMAL) * 
+                 CAST(SPLIT_PART(${workoutExercises.reps}, 'x', 1) AS DECIMAL) * 
+                 CAST(${workoutExercises.weight} AS DECIMAL)
+            ELSE 0
+          END
+        ), 0)`,
+        maxWeight: drizzleSql<number>`COALESCE(MAX(
+          CASE 
+            WHEN ${workoutExercises.weight} IS NOT NULL 
+            AND ${workoutExercises.weight} != ''
+            THEN CAST(${workoutExercises.weight} AS DECIMAL)
+            ELSE NULL
+          END
+        ), 0)`,
+        totalSets: drizzleSql<number>`COALESCE(SUM(
+          CASE 
+            WHEN ${workoutExercises.sets} IS NOT NULL
+            AND ${workoutExercises.sets} != ''
+            THEN CAST(${workoutExercises.sets} AS DECIMAL)
+            ELSE 0
+          END
+        ), 0)`,
+        lastPerformed: drizzleSql<string>`COALESCE(MAX(
+          CASE 
+            WHEN ${workouts.date} IS NOT NULL
+            THEN ${workouts.date}
+            ELSE NULL
+          END
+        ), '')`
       })
       .from(exercises)
       .leftJoin(workoutExercises, eq(exercises.id, workoutExercises.exerciseId))
-      .leftJoin(workouts, eq(workoutExercises.workoutId, workouts.id))
-      .where(eq(workouts.userId, userId))
+      .leftJoin(workouts, and(
+        eq(workoutExercises.workoutId, workouts.id),
+        eq(workouts.userId, userId)
+      ))
       .groupBy(exercises.id, exercises.name);
 
     return stats;
@@ -924,6 +1049,23 @@ export class MemStorage implements IStorage {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
+  async getWorkoutsWithExercises(userId: string): Promise<WorkoutWithExercises[]> {
+    const userWorkouts = Array.from(this.workouts.values())
+      .filter(w => w.userId === userId)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    const workoutsWithExercises = [];
+    for (const workout of userWorkouts) {
+      const exercises = await this.getWorkoutExercises(workout.id);
+      workoutsWithExercises.push({
+        ...workout,
+        exercises
+      });
+    }
+    
+    return workoutsWithExercises;
+  }
+
   async getWorkoutById(id: number, userId: string): Promise<WorkoutWithExercises | undefined> {
     const workout = this.workouts.get(id);
     if (!workout || workout.userId !== userId) return undefined;
@@ -1103,7 +1245,27 @@ export class MemStorage implements IStorage {
       new Date(workout.date) >= weekStart
     );
 
-    const userRecords = Array.from(this.personalRecords.values()).filter(pr => pr.userId === userId);
+    // Find the heaviest exercise performed by the user
+    let heaviestExercise = null;
+    let maxWeight = 0;
+
+    for (const we of Array.from(this.workoutExercises.values())) {
+      const workout = this.workouts.get(we.workoutId);
+      if (!workout || workout.userId !== userId) continue;
+      
+      const exercise = this.exercises.get(we.exerciseId);
+      if (!exercise || !we.weight) continue;
+      
+      const weight = parseFloat(we.weight);
+      if (!isNaN(weight) && weight > maxWeight) {
+        maxWeight = weight;
+        heaviestExercise = {
+          exerciseName: exercise.name,
+          weight: weight,
+          category: exercise.category
+        };
+      }
+    }
 
     // Get daily quote instead of total volume
     const dailyQuote = await this.getDailyQuote();
@@ -1115,7 +1277,7 @@ export class MemStorage implements IStorage {
     return {
       totalWorkouts: userWorkouts.length,
       thisWeek: thisWeekWorkouts.length,
-      personalRecords: userRecords.length,
+      personalRecords: heaviestExercise,
       dailyQuote,
       weeklyGoal: user?.weeklyGoal || 4,
       averageDuration: userWorkouts.length > 0 

@@ -52,12 +52,122 @@ export default function NewWorkout() {
     });
   };
 
+  // Add this helper function after addExercise
+  const getDeterminedCategory = () => {
+    const currentExercises = form.watch("exercises") || [];
+    
+    if (currentExercises.length === 0) {
+      return { category: "Not determined", reason: "No exercises selected" };
+    }
+    
+    // Get categories of all selected exercises
+    const exerciseCategories = currentExercises
+      .map(workoutExercise => {
+        const exercise = exercises.find(ex => ex.id === workoutExercise.exerciseId);
+        return exercise?.category;
+      })
+      .filter(Boolean); // Remove undefined values
+    
+    if (exerciseCategories.length === 0) {
+      return { category: "Not determined", reason: "No valid exercises selected" };
+    }
+    
+    // Count frequency of each category
+    const categoryCount = exerciseCategories.reduce((acc, category) => {
+      acc[category!] = (acc[category!] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Find the most frequent category
+    const sortedCategories = Object.entries(categoryCount)
+      .sort(([,a], [,b]) => b - a);
+    
+    const [dominantCategory, count] = sortedCategories[0];
+    const totalExercises = exerciseCategories.length;
+    
+    // Provide reasoning for the determination
+    let reason = "";
+    if (sortedCategories.length === 1) {
+      reason = `All ${totalExercises} exercise${totalExercises > 1 ? 's' : ''} are ${dominantCategory}`;
+    } else {
+      const percentage = Math.round((count / totalExercises) * 100);
+      reason = `${count}/${totalExercises} exercises (${percentage}%) are ${dominantCategory}`;
+    }
+    
+    return { 
+      category: dominantCategory.charAt(0).toUpperCase() + dominantCategory.slice(1), 
+      reason 
+    };
+  };
+
   const onSubmit = async (data: CreateWorkoutWithExercises) => {
     console.log("Form submitted with data:", data);
+    
+    // Check if workout name is empty
+    if (!data.name || data.name.trim() === "") {
+      toast({
+        title: "Workout name required",
+        description: "Please enter a name for your workout",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check if no exercises are added
+    if (!data.exercises || data.exercises.length === 0) {
+      toast({
+        title: "No exercises added",
+        description: "Please add at least one exercise to your workout",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check for empty exercises (exercises without selected exerciseId)
+    const hasEmptyExercises = data.exercises.some(exercise => !exercise.exerciseId || exercise.exerciseId === 0);
+    if (hasEmptyExercises) {
+      toast({
+        title: "Incomplete exercises found",
+        description: "Please select an exercise for all exercise entries or remove empty ones",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      // Add the image to the workout data
+      // Auto-determine workout category based on selected exercises
+      let determinedCategory = "strength"; // default fallback
+      
+      if (data.exercises && data.exercises.length > 0) {
+        // Get categories of all selected exercises
+        const exerciseCategories = data.exercises
+          .map(workoutExercise => {
+            const exercise = exercises.find(ex => ex.id === workoutExercise.exerciseId);
+            return exercise?.category;
+          })
+          .filter(Boolean); // Remove undefined values
+        
+        if (exerciseCategories.length > 0) {
+          // Count frequency of each category
+          const categoryCount = exerciseCategories.reduce((acc, category) => {
+            acc[category!] = (acc[category!] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          
+          // Find the most frequent category
+          determinedCategory = Object.entries(categoryCount)
+            .sort(([,a], [,b]) => b - a)[0][0];
+          
+          console.log("Exercise categories:", exerciseCategories);
+          console.log("Category count:", categoryCount);
+          console.log("Determined category:", determinedCategory);
+        }
+      }
+      
+      // Add the image and auto-determined category to the workout data
       const workoutData = {
         ...data,
+        category: determinedCategory, // Override with auto-determined category
         imageUrl: workoutImage,
       };
       
@@ -65,7 +175,7 @@ export default function NewWorkout() {
       console.log("Workout created successfully:", result);
       toast({
         title: "Workout created!",
-        description: `Your workout with ${data.exercises?.length || 0} exercises has been saved successfully.`,
+        description: `Your ${determinedCategory} workout with ${data.exercises?.length || 0} exercises has been saved successfully.`,
       });
       setLocation("/");
     } catch (error) {
@@ -108,113 +218,125 @@ export default function NewWorkout() {
                     )}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {categories.map((category) => (
-                                <SelectItem key={category.id} value={category.name.toLowerCase()}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {/* Updated: Removed the grid layout and Category field */}
+                  <FormField
+                    control={form.control}
+                    name="duration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Duration (minutes)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="60" 
+                            {...field} 
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 60)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    <FormField
-                      control={form.control}
-                      name="duration"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Duration (minutes)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="60" 
-                              {...field} 
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 60)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  {/* Choose Exercise Section - New prominent section */}
+                  <div className="border-t pt-6">
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold mb-2">Choose Exercise</h3>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                        Select an exercise from the dropdown to add it to your workout.
+                      </p>
+                      
+                      <div className="w-full">
+                        <FormLabel>Select Exercise</FormLabel>
+                        <Select 
+                          value="" 
+                          onValueChange={(value) => {
+                            const exerciseId = parseInt(value);
+                            const isAlreadyAdded = fields.some(field => 
+                              form.getValues(`exercises.${fields.indexOf(field)}.exerciseId`) === exerciseId
+                            );
+                            
+                            if (!isAlreadyAdded) {
+                              addExercise();
+                              const newIndex = fields.length;
+                              setTimeout(() => {
+                                form.setValue(`exercises.${newIndex}.exerciseId`, exerciseId);
+                              }, 0);
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose an exercise to add" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {exercises.map((exercise) => {
+                              const isAlreadyAdded = fields.some(field => 
+                                form.getValues(`exercises.${fields.indexOf(field)}.exerciseId`) === exercise.id
+                              );
+                              
+                              return (
+                                <SelectItem 
+                                  key={exercise.id} 
+                                  value={exercise.id.toString()}
+                                  disabled={isAlreadyAdded}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span>{exercise.name}</span>
+                                    <span className="text-xs text-slate-500 capitalize">
+                                      ({exercise.category} • {exercise.muscleGroup})
+                                    </span>
+                                    {isAlreadyAdded && (
+                                      <span className="text-xs text-green-600">✓ Added</span>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Exercises Section - Moved here after Category and Duration */}
+                  {/* Exercises Section - Updated to remove heading and Add Exercise button */}
                   <div className="border-t pt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold">Exercises</h3>
-                      <Button type="button" onClick={addExercise} variant="outline" size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Exercise
-                      </Button>
-                    </div>
-
                     {fields.length === 0 && (
                       <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                         <p>No exercises added yet.</p>
-                        <p className="text-sm mt-1">Click "Add Exercise" to start building your workout.</p>
+                        <p className="text-sm mt-1">Use the dropdown above to add exercises to your workout.</p>
                       </div>
                     )}
 
                     <div className="space-y-4">
-                      {fields.map((field, index) => (
-                        <Card key={field.id} className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium">Exercise {index + 1}</h4>
-                            <Button
-                              type="button"
-                              onClick={() => remove(index)}
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                      {fields.map((field, index) => {
+                        const selectedExerciseId = form.watch(`exercises.${index}.exerciseId`);
+                        const selectedExercise = exercises.find(ex => ex.id === selectedExerciseId);
+                        
+                        return (
+                          <Card key={field.id} className="p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+                                {selectedExercise ? (
+                                  <>
+                                    Exercise {index + 1}: <span className="text-yellow-500">{selectedExercise.name}</span>
+                                  </>
+                                ) : (
+                                  `Exercise ${index + 1}`
+                                )}
+                              </h3>
+                              <Button
+                                type="button"
+                                onClick={() => remove(index)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <FormField
-                              control={form.control}
-                              name={`exercises.${index}.exerciseId`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Exercise</FormLabel>
-                                  <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
-                                    <FormControl>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select exercise" />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {exercises.map((exercise) => (
-                                        <SelectItem key={exercise.id} value={exercise.id.toString()}>
-                                          {exercise.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-3 gap-2 mb-4">
                               <FormField
                                 control={form.control}
                                 name={`exercises.${index}.sets`}
@@ -261,63 +383,88 @@ export default function NewWorkout() {
                                 )}
                               />
                             </div>
-                          </div>
 
-                          {/* Exercise Image and Instructions */}
-                          {(() => {
-                            const selectedExerciseId = form.watch(`exercises.${index}.exerciseId`);
-                            const selectedExercise = exercises.find(ex => ex.id === selectedExerciseId);
-                            
-                            if (selectedExercise?.imageUrl || selectedExercise?.instructions) {
-                              return (
-                                <div className="mb-4">
-                                  <div className="flex gap-4">
-                                    {/* Image on the left */}
-                                    {selectedExercise?.imageUrl && (
-                                      <div className="w-1/2">
-                                        <div className="aspect-video w-full overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-white">
-                                          <img
-                                            src={selectedExercise.imageUrl}
-                                            alt={selectedExercise.name}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                              console.error('Image failed to load:', selectedExercise.imageUrl);
-                                              e.currentTarget.style.display = 'none';
-                                            }}
-                                            onLoad={() => {
-                                              console.log('Image loaded successfully:', selectedExercise.imageUrl);
-                                            }}
-                                          />
+                            {/* Exercise Image and Instructions */}
+                            {(() => {
+                              if (selectedExercise?.imageUrl || selectedExercise?.instructions) {
+                                return (
+                                  <div className="mb-4">
+                                    <div className="flex gap-4">
+                                      {/* Image on the left */}
+                                      {selectedExercise?.imageUrl && (
+                                        <div className="w-1/2">
+                                          <div className="aspect-video w-full overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-white">
+                                            <img
+                                              src={selectedExercise.imageUrl}
+                                              alt={selectedExercise.name}
+                                              className="w-full h-full object-cover"
+                                              onError={(e) => {
+                                                console.error('Image failed to load:', selectedExercise.imageUrl);
+                                                e.currentTarget.style.display = 'none';
+                                              }}
+                                              onLoad={() => {
+                                                console.log('Image loaded successfully:', selectedExercise.imageUrl);
+                                              }}
+                                            />
+                                          </div>
+                                          <p className="text-center text-sm text-slate-600 dark:text-slate-400 mt-2">
+                                            {selectedExercise.name}
+                                          </p>
                                         </div>
-                                        <p className="text-center text-sm text-slate-600 dark:text-slate-400 mt-2">
-                                          {selectedExercise.name}
-                                        </p>
-                                      </div>
-                                    )}
-                                    
-                                    {/* Instructions on the right */}
-                                    {selectedExercise?.instructions && (
-                                      <div className="w-1/2">
-                                        <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">
-                                          Instructions
-                                        </h4>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                                          {selectedExercise.instructions}
-                                        </p>
-                                      </div>
-                                    )}
+                                      )}
+                                      
+                                      {/* Instructions on the right */}
+                                      {selectedExercise?.instructions && (
+                                        <div className="w-1/2">
+                                          <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">
+                                            Instructions
+                                          </h4>
+                                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                            {selectedExercise.instructions}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </Card>
-                      ))}
+                                );
+                              }
+                              return null;
+                            })()} 
+                          </Card>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Image Upload - Moved here after Exercises */}
+                  {/* Workout Category Display - Auto-determined - Moved above Workout Photo */}
+                  <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        Workout Category
+                      </h4>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Auto-determined
+                      </span>
+                    </div>
+                    
+                    {(() => {
+                      const { category, reason } = getDeterminedCategory();
+                      return (
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                              {category}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">
+                            {reason}
+                          </p>
+                        </div>
+                      );
+                    })()} 
+                  </div>
+
+                  {/* Image Upload - Workout Photo */}
                   <ImageUpload
                     onImageSelect={setWorkoutImage}
                     currentImage={workoutImage}
@@ -342,9 +489,55 @@ export default function NewWorkout() {
                   />
 
                   <div className="flex space-x-3 pt-6">
-                    <Button type="submit" disabled={createWorkout.isPending}>
-                      {createWorkout.isPending ? "Creating..." : "Save Workout"}
-                    </Button>
+                    {(() => {
+                      const currentExercises = form.watch("exercises") || [];
+                      const currentName = form.watch("name") || "";
+                      const hasEmptyName = currentName.trim() === "";
+                      const hasNoExercises = currentExercises.length === 0;
+                      const hasEmptyExercises = currentExercises.some(exercise => !exercise.exerciseId || exercise.exerciseId === 0);
+                      const shouldDisable = hasEmptyName || hasNoExercises || hasEmptyExercises;
+                      
+                      const handleSaveClick = () => {
+                        // Show appropriate warning when button is disabled
+                        if (hasEmptyName) {
+                          toast({
+                            title: "Workout name required",
+                            description: "Please enter a name for your workout",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        
+                        if (hasNoExercises) {
+                          toast({
+                            title: "No exercises added",
+                            description: "Please add at least one exercise to your workout",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        
+                        if (hasEmptyExercises) {
+                          toast({
+                            title: "Incomplete exercises found",
+                            description: "Please select an exercise for all exercise entries or remove empty ones",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                      };
+                      
+                      return (
+                        <Button 
+                          type={shouldDisable ? "button" : "submit"}
+                          onClick={shouldDisable ? handleSaveClick : undefined}
+                          disabled={createWorkout.isPending}
+                          className={shouldDisable ? "opacity-50 cursor-not-allowed" : ""}
+                        >
+                          {createWorkout.isPending ? "Creating..." : "Save Workout"}
+                        </Button>
+                      );
+                    })()} 
                     <Button type="button" variant="outline" onClick={() => setLocation("/")}>
                       Cancel
                     </Button>
