@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { User, Dumbbell } from 'lucide-react';
+import { CommunityFeedItem } from './community-feed-item';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -38,7 +39,7 @@ export default function CommunityDashboard() {
     let subscription: any;
     async function fetchActivities() {
       setLoading(true);
-      const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('community_presence')
         .select('*')
@@ -88,30 +89,8 @@ export default function CommunityDashboard() {
             </div>
           ) : (
             activities.map((activity) => (
-              <Card key={activity.user_id} className="bg-slate-800">
-                <CardContent className="flex items-center gap-4 p-4">
-                  {activity.profile_image_url ? (
-                    <img
-                      src={activity.profile_image_url}
-                      alt={activity.username}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-blue-400"
-                    />
-                  ) : (
-                    <User className="w-10 h-10 text-blue-400 bg-slate-700 rounded-full p-1" />
-                  )}
-                  <div className="flex-1">
-                    <span className="font-semibold text-white">{activity.username}</span>
-                    <span className="text-slate-400"> just finished </span>
-                    <span className="font-semibold text-green-400">{activity.workout_name}</span>
-                    <span className="text-slate-400"> doing </span>
-                    <span className="font-semibold text-yellow-300 flex items-center gap-1">
-                      <Dumbbell className="inline w-4 h-4" />{activity.exercise_name}
-                    </span>
-                  </div>
-                  <span className="text-xs text-slate-500">{new Date(activity.last_active).toLocaleTimeString()}</span>
-                </CardContent>
-              </Card>
-            ))
+  <CommunityFeedItem key={activity.user_id + activity.last_active} activity={activity} />
+))
           )}
         </div>
       )}

@@ -30,6 +30,23 @@ export default function Settings() {
     }
   }, [user]);
 
+  // Fetch profile info (username and profile_image_url) on mount/user change
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!user?.id) return;
+      const { data, error } = await supabase
+        .from('users')
+        .select('username, profile_image_url')
+        .eq('id', user.id)
+        .single();
+      if (!error && data) {
+        setUsername(data.username || "");
+        setProfileImageUrl(data.profile_image_url || null);
+      }
+    }
+    fetchProfile();
+  }, [user]);
+
   const handleCommunityToggle = async (checked: boolean) => {
     if (!user?.id) return;
     setLoadingCommunity(true);
@@ -51,10 +68,15 @@ export default function Settings() {
   setSavingProfile(false);
   if (!error) {
     alert("Profile saved!");
-    // Re-fetch latest username from DB to ensure UI is up to date
-    const { data, error: fetchError } = await supabase.from('users').select('username').eq('id', user.id).single();
-    if (!fetchError && data?.username) {
+    // Re-fetch BOTH username and profile_image_url from DB to ensure UI is up to date
+    const { data, error: fetchError } = await supabase
+      .from('users')
+      .select('username, profile_image_url')
+      .eq('id', user.id)
+      .single();
+    if (!fetchError && data) {
       setUsername(data.username);
+      setProfileImageUrl(data.profile_image_url || null);
     }
   } else {
     alert("Failed to save profile: " + (error.message || "Unknown error"));

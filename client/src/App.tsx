@@ -20,6 +20,7 @@ import PrivacyPolicy from "@/pages/privacy-policy";
 import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
+import CommunityDashboard from "@/pages/community";
 import { useState } from "react";
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
           <Route path="/exercises" component={Exercises} />
           <Route path="/progress" component={Progress} />
           <Route path="/settings" component={Settings} />
+          <Route path="/community" component={CommunityDashboard} />
           {import.meta.env.DEV && <Route path="/admin" component={Admin} />}
         </>
       )}

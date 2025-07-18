@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createWorkoutWithExercisesSchema, type CreateWorkoutWithExercises } from "@shared/schema";
 import { useWorkout, useUpdateWorkout } from "@/hooks/use-workouts";
 import { upsertCommunityPresence } from "@/lib/community";
+import { supabase } from '@/lib/supabase';
 import { useAuth } from "@/hooks/useAuth";
 import { useExercises } from "@/hooks/use-exercises";
 import { useCategories } from "@/hooks/use-categories";
@@ -190,21 +191,28 @@ export default function EditWorkout({ params }: EditWorkoutProps) {
       
       // Upsert community presence if user is opted in
       if (user?.id) {
-        try {
-          await upsertCommunityPresence({
-            userId: user.id,
-            username: user.user_metadata?.username || user.email,
-            profileImageUrl: user.user_metadata?.profile_image_url || null,
-            workoutName: data.name,
-            exerciseName: data.exercises && data.exercises.length > 0 ? (() => {
-              const ex = exercises.find(e => e.id === data.exercises[0].exerciseId);
-              return ex?.name || "";
-            })() : "",
-          });
-        } catch (err) {
-          console.error("Failed to upsert community presence:", err);
-        }
-      }
+  try {
+    // Fetch latest username and profile_image_url from Supabase
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('username, profile_image_url')
+      .eq('id', user.id)
+      .single();
+    if (profileError) throw profileError;
+    await upsertCommunityPresence({
+      userId: user.id,
+      username: profile?.username || user.email,
+      profileImageUrl: profile?.profile_image_url || null,
+      workoutName: data.name,
+      exerciseName: data.exercises && data.exercises.length > 0 ? (() => {
+        const ex = exercises.find(e => e.id === data.exercises[0].exerciseId);
+        return ex?.name || "";
+      })() : "",
+    });
+  } catch (err) {
+    console.error("Failed to upsert community presence:", err);
+  }
+}
       
       toast({
         title: "Workout updated!",

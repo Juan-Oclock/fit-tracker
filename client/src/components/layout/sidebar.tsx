@@ -6,7 +6,8 @@ import {
   Dumbbell, 
   TrendingUp, 
   Settings,
-  Shield
+  Shield,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ const baseNavItems = [
   { href: "/history", label: "History", icon: History },
   { href: "/exercises", label: "Exercises", icon: Dumbbell },
   { href: "/progress", label: "Progress", icon: TrendingUp },
+  { href: "/community", label: "Community", icon: User },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
