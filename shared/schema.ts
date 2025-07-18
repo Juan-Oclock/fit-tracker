@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   weeklyGoal: integer("weekly_goal").default(4),
   goalSetAt: timestamp("goal_set_at"),
+  showInCommunity: boolean("show_in_community").default(false), // Opt-in for community dashboard
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

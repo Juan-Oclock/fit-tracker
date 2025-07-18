@@ -15,11 +15,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
 import { Plus, Clock, Trash2 } from "lucide-react";
 import { ImageUpload } from "@/components/image-upload";
+import { upsertCommunityPresence } from "@/lib/community";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function NewWorkout() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const createWorkout = useCreateWorkout();
+  const { user } = useAuth();
   const { data: exercises = [] } = useExercises();
   const { data: categories = [] } = useCategories();
   const [showRestTimer, setShowRestTimer] = useState(false);
@@ -173,6 +176,24 @@ export default function NewWorkout() {
       
       const result = await createWorkout.mutateAsync(workoutData);
       console.log("Workout created successfully:", result);
+      
+      if (user?.id) {
+        try {
+          await upsertCommunityPresence({
+            userId: user.id,
+            username: user.user_metadata?.username || user.email,
+            profileImageUrl: user.user_metadata?.profile_image_url || null,
+            workoutName: data.name,
+            exerciseName: data.exercises && data.exercises.length > 0 ? (() => {
+              const ex = exercises.find(e => e.id === data.exercises[0].exerciseId);
+              return ex?.name || "";
+            })() : "",
+          });
+        } catch (err) {
+          console.error("Failed to upsert community presence:", err);
+        }
+      }
+      
       toast({
         title: "Workout created!",
         description: `Your ${determinedCategory} workout with ${data.exercises?.length || 0} exercises has been saved successfully.`,
