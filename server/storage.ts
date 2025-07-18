@@ -8,6 +8,7 @@ import {
   goalPhotos,
   categories,
   quotes,
+  muscleGroups,
   type Exercise, 
   type InsertExercise,
   type Workout,
@@ -30,7 +31,9 @@ import {
   type Category,
   type InsertCategory,
   type Quote,
-  type InsertQuote
+  type InsertQuote,
+  type MuscleGroup,
+  type InsertMuscleGroup
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
@@ -98,6 +101,12 @@ export interface IStorage {
   createCategory(category: InsertCategory): Promise<Category>;
   updateCategory(id: number, updateData: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: number): Promise<boolean>;
+
+  // Muscle Group methods
+  getMuscleGroups(): Promise<MuscleGroup[]>;
+  createMuscleGroup(muscleGroup: InsertMuscleGroup): Promise<MuscleGroup>;
+  updateMuscleGroup(id: number, updateData: Partial<InsertMuscleGroup>): Promise<MuscleGroup | undefined>;
+  deleteMuscleGroup(id: number): Promise<boolean>;
 
   // Quote methods
   getQuotes(): Promise<Quote[]>;
@@ -771,9 +780,29 @@ export class PostgresStorage implements IStorage {
   }
 
   async deleteCategory(id: number): Promise<boolean> {
-    // Remove the isDefault check to allow deleting all categories
+    console.log(`Attempting to delete category with ID: ${id}`);
+    
+    // First check if the category exists
+    const existingCategory = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
+    console.log('Existing category before delete:', existingCategory);
+    
+    if (existingCategory.length === 0) {
+      console.log('Category not found, returning false');
+      return false;
+    }
+    
+    // Category exists, proceed with deletion
     const result = await db.delete(categories).where(eq(categories.id, id));
-    return result.rowCount > 0;
+    console.log('Delete result:', result);
+    console.log('Row count:', result.rowCount);
+    
+    // Verify deletion by checking if category still exists
+    const categoryAfterDelete = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
+    const success = categoryAfterDelete.length === 0;
+    console.log('Category after delete:', categoryAfterDelete);
+    console.log('Delete success:', success);
+    
+    return success;
   }
 
   // Quote methods
@@ -829,6 +858,50 @@ export class PostgresStorage implements IStorage {
     }
     return insertedQuotes;
   }
+
+  // Muscle Group methods
+  async getMuscleGroups(): Promise<MuscleGroup[]> {
+    return await db.select().from(muscleGroups).orderBy(desc(muscleGroups.isDefault), muscleGroups.name);
+  }
+
+  async createMuscleGroup(muscleGroup: InsertMuscleGroup): Promise<MuscleGroup> {
+    const [newMuscleGroup] = await db.insert(muscleGroups).values(muscleGroup).returning();
+    return newMuscleGroup;
+  }
+
+  async updateMuscleGroup(id: number, updateData: Partial<InsertMuscleGroup>): Promise<MuscleGroup | undefined> {
+    const [updatedMuscleGroup] = await db
+      .update(muscleGroups)
+      .set(updateData)
+      .where(eq(muscleGroups.id, id))
+      .returning();
+    return updatedMuscleGroup;
+  }
+
+  async deleteMuscleGroup(id: number): Promise<boolean> {
+    console.log('Attempting to delete muscle group with ID:', id);
+    
+    // Check if muscle group exists before deletion
+    const existingMuscleGroup = await db.select().from(muscleGroups).where(eq(muscleGroups.id, id)).limit(1);
+    console.log('Existing muscle group:', existingMuscleGroup);
+    
+    if (existingMuscleGroup.length === 0) {
+      console.log('Muscle group not found');
+      return false;
+    }
+    
+    // Perform deletion
+    const result = await db.delete(muscleGroups).where(eq(muscleGroups.id, id));
+    console.log('Delete result:', result);
+    
+    // Verify deletion by checking if muscle group still exists
+    const muscleGroupAfterDelete = await db.select().from(muscleGroups).where(eq(muscleGroups.id, id)).limit(1);
+    const success = muscleGroupAfterDelete.length === 0;
+    console.log('Muscle group after delete:', muscleGroupAfterDelete);
+    console.log('Delete success:', success);
+    
+    return success;
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -841,6 +914,7 @@ export class MemStorage implements IStorage {
   private personalRecords: Map<number, PersonalRecord>;
   private categories: Map<number, Category>;
   private quotes: Map<number, Quote>;
+  private muscleGroups: Map<number, MuscleGroup>;
   private currentExerciseId: number;
   private currentWorkoutId: number;
   private currentWorkoutExerciseId: number;
@@ -848,6 +922,7 @@ export class MemStorage implements IStorage {
   private currentGoalPhotoId: number;
   private currentCategoryId: number;
   private currentQuoteId: number;
+  private currentMuscleGroupId: number;
 
   constructor() {
     this.monthlyGoals = new Map();
@@ -859,6 +934,7 @@ export class MemStorage implements IStorage {
     this.personalRecords = new Map();
     this.categories = new Map();
     this.quotes = new Map();
+    this.muscleGroups = new Map();
     this.currentExerciseId = 1;
     this.currentWorkoutId = 1;
     this.currentWorkoutExerciseId = 1;
@@ -866,6 +942,7 @@ export class MemStorage implements IStorage {
     this.currentGoalPhotoId = 1;
     this.currentCategoryId = 1;
     this.currentQuoteId = 1;
+    this.currentMuscleGroupId = 1;
 
     // Initialize with common exercises
     this.initializeDefaultExercises();
@@ -1529,6 +1606,41 @@ export class MemStorage implements IStorage {
     }
     return insertedQuotes;
   }
+
+  // Muscle Group methods
+  async getMuscleGroups(): Promise<MuscleGroup[]> {
+    return Array.from(this.muscleGroups.values()).sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  async createMuscleGroup(muscleGroup: InsertMuscleGroup): Promise<MuscleGroup> {
+    const id = this.currentMuscleGroupId++;
+    const newMuscleGroup: MuscleGroup = {
+      id,
+      name: muscleGroup.name,
+      description: muscleGroup.description || null,
+      isDefault: muscleGroup.isDefault || null,
+      createdAt: new Date()
+    };
+    this.muscleGroups.set(id, newMuscleGroup);
+    return newMuscleGroup;
+  }
+
+  async updateMuscleGroup(id: number, updateData: Partial<InsertMuscleGroup>): Promise<MuscleGroup | undefined> {
+    const muscleGroup = this.muscleGroups.get(id);
+    if (!muscleGroup) return undefined;
+    
+    const updatedMuscleGroup = { ...muscleGroup, ...updateData };
+    this.muscleGroups.set(id, updatedMuscleGroup);
+    return updatedMuscleGroup;
+  }
+
+  async deleteMuscleGroup(id: number): Promise<boolean> {
+    return this.muscleGroups.delete(id);
+  }
 }
 
 // Manual migration function since drizzle-kit migrate is failing
@@ -1626,6 +1738,17 @@ async function ensureTablesExist() {
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+    
+    // Add muscle groups table
+    await sql`
+      CREATE TABLE IF NOT EXISTS muscle_groups (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        is_default BOOLEAN DEFAULT false,
+        created_at TIMESTAMP DEFAULT NOW()
       );
     `;
     

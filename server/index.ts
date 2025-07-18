@@ -4,6 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { getStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
 import { seedCategories } from "./seed-categories"; // Add this import
+import { seedMuscleGroups } from "./seed-muscle-groups";
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -45,7 +46,8 @@ app.use((req, res, next) => {
     const storage = await getStorage();
     await storage.ensureInitialized();
     await seedCategories(); // Add this line
-    log("Database initialized and categories seeded");
+    await seedMuscleGroups(); // Add muscle groups seeding
+    log("Database initialized, categories and muscle groups seeded");
   } catch (error) {
     log(`Failed to initialize database: ${error}`, "error");
   }

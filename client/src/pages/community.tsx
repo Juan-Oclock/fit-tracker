@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { User, Dumbbell } from 'lucide-react';
 import { CommunityFeedItem } from './community-feed-item';
+import { ActiveUserCountLabel } from './active-user-count-label';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -37,6 +38,7 @@ export default function CommunityDashboard() {
   // Fetch and subscribe to presence
   useEffect(() => {
     let subscription: any;
+    let heartbeatInterval: NodeJS.Timeout | null = null;
     async function fetchActivities() {
       setLoading(true);
       const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -44,6 +46,7 @@ export default function CommunityDashboard() {
         .from('community_presence')
         .select('*')
         .gte('last_active', since)
+        .neq('workout_name', '') // Filter out heartbeat entries with empty workout names
         .order('last_active', { ascending: false });
       if (!error && data) setActivities(data);
       setLoading(false);
@@ -56,10 +59,30 @@ export default function CommunityDashboard() {
         fetchActivities();
       })
       .subscribe();
+
+    // Heartbeat: update presence every 60s if opted in
+    async function heartbeatPresence() {
+      if (!user?.id || !optedIn) return;
+      // Fetch username/profile once
+      const { data: profile } = await supabase.from('users').select('username, profile_image_url').eq('id', user.id).single();
+      await supabase.from('community_presence').upsert({
+        user_id: user.id,
+        username: profile?.username || user.email,
+        profile_image_url: profile?.profile_image_url || null,
+        workout_name: '', // blank for heartbeat
+        exercise_name: '', // blank for heartbeat
+        last_active: new Date().toISOString(),
+      });
+    }
+    if (user?.id && optedIn) {
+      heartbeatPresence(); // initial
+      heartbeatInterval = setInterval(heartbeatPresence, 60000); // every 60s
+    }
     return () => {
       if (subscription) supabase.removeChannel(subscription);
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
     };
-  }, []);
+  }, [user, optedIn]);
 
   return (
     <div className="max-w-3xl mx-auto py-10 space-y-8">
@@ -75,6 +98,8 @@ export default function CommunityDashboard() {
           </span>
         </CardContent>
       </Card>
+      {/* Active users label */}
+      <ActiveUserCountLabel />
       {!optedIn ? (
         <div className="text-center text-slate-400 py-12">
           Enable sharing in your Settings to join the live community feed!

@@ -188,6 +188,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const storage = await getStorage();
       const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid category ID" });
+      }
+      
       const validatedData = insertCategorySchema.partial().parse(req.body);
       const category = await storage.updateCategory(id, validatedData);
       
@@ -196,9 +201,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.json(category);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating category:", error);
-      res.status(400).json({ message: "Invalid category data" });
+      
+      // Handle specific database errors
+      if (error?.code === '23505' || error?.message?.includes('unique constraint')) {
+        return res.status(409).json({ 
+          message: `A category with this name already exists. Please choose a different name.` 
+        });
+      }
+      
+      // Handle validation errors from Zod
+      if (error?.name === 'ZodError') {
+        return res.status(400).json({ 
+          message: "Invalid category data: " + error.errors.map((e: any) => e.message).join(", ")
+        });
+      }
+      
+      // Handle other database constraint errors
+      if (error?.code?.startsWith('23')) {
+        return res.status(400).json({ message: "Database constraint violation" });
+      }
+      
+      // Generic error fallback
+      res.status(500).json({ message: "Internal server error while updating category" });
     }
   });
   
@@ -206,15 +232,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const storage = await getStorage();
       const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid category ID" });
+      }
+      
       const success = await storage.deleteCategory(id);
       
       if (!success) {
-        return res.status(404).json({ message: "Category not found or cannot delete default category" });
+        return res.status(404).json({ message: "Category not found" });
       }
       
       res.json({ message: "Category deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting category:", error);
+      
+      // Handle foreign key constraint violations
+      if (error?.code === '23503') {
+        return res.status(409).json({ 
+          message: "Cannot delete category because it is being used by exercises or workouts" 
+        });
+      }
+      
+      // Handle other database constraint errors
+      if (error?.code?.startsWith('23')) {
+        return res.status(400).json({ message: "Database constraint violation" });
+      }
+      
+      // Generic error fallback
+      res.status(500).json({ message: "Internal server error while deleting category" });
+    }
+  });
+
+  // Muscle Groups routes (protected)
+  app.get("/api/muscle-groups", isAuthenticated, async (req: any, res) => {
+    try {
+      const storage = await getStorage();
+      const muscleGroups = await storage.getMuscleGroups();
+      res.json(muscleGroups);
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete category" });
+      console.error("Error fetching muscle groups:", error);
+      res.status(500).json({ message: "Failed to fetch muscle groups" });
+    }
+  });
+
+  app.post("/api/muscle-groups", isAuthenticated, async (req: any, res) => {
+    try {
+      const storage = await getStorage();
+      const muscleGroup = await storage.createMuscleGroup(req.body);
+      res.status(201).json(muscleGroup);
+    } catch (error) {
+      console.error("Error creating muscle group:", error);
+      
+      // Handle unique constraint violations
+      if (error?.code === '23505') {
+        return res.status(409).json({ 
+          message: "A muscle group with this name already exists. Please choose a different name." 
+        });
+      }
+      
+      // Handle validation errors
+      if (error?.code?.startsWith('23')) {
+        return res.status(400).json({ message: "Invalid muscle group data" });
+      }
+      
+      res.status(500).json({ message: "Failed to create muscle group" });
+    }
+  });
+
+  app.put("/api/muscle-groups/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid muscle group ID" });
+      }
+      
+      const storage = await getStorage();
+      const muscleGroup = await storage.updateMuscleGroup(id, req.body);
+      
+      if (!muscleGroup) {
+        return res.status(404).json({ message: "Muscle group not found. It may have been deleted by another user." });
+      }
+      
+      res.json(muscleGroup);
+    } catch (error) {
+      console.error("Error updating muscle group:", error);
+      
+      // Handle unique constraint violations
+      if (error?.code === '23505') {
+        return res.status(409).json({ 
+          message: "A muscle group with this name already exists. Please choose a different name." 
+        });
+      }
+      
+      // Handle validation errors
+      if (error?.code?.startsWith('23')) {
+        return res.status(400).json({ message: "Invalid muscle group data" });
+      }
+      
+      res.status(500).json({ message: "Failed to update muscle group" });
+    }
+  });
+
+  app.delete("/api/muscle-groups/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid muscle group ID" });
+      }
+      
+      const storage = await getStorage();
+      const success = await storage.deleteMuscleGroup(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Muscle group not found. It may have already been deleted." });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting muscle group:", error);
+      
+      // Handle foreign key constraint violations
+      if (error?.code === '23503') {
+        return res.status(409).json({ 
+          message: "Cannot delete muscle group because it is being used by exercises" 
+        });
+      }
+      
+      // Handle other database constraint errors
+      if (error?.code?.startsWith('23')) {
+        return res.status(400).json({ message: "Database constraint violation" });
+      }
+      
+      // Generic error fallback
+      res.status(500).json({ message: "Internal server error while deleting muscle group" });
     }
   });
 

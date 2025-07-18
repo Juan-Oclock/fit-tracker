@@ -29,10 +29,8 @@ export function useDeleteCategory() {
   
   return useMutation({
     mutationFn: async (id: number): Promise<void> => {
-      const response = await apiRequest("DELETE", `/api/categories/${id}`);
-      if (!response.ok) {
-        throw new Error("Failed to delete category");
-      }
+      await apiRequest("DELETE", `/api/categories/${id}`);
+      // apiRequest already throws on non-ok responses via throwIfResNotOk
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/categories"] });

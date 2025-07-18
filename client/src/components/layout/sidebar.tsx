@@ -10,6 +10,7 @@ import {
   User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 // Base navigation items
 const baseNavItems = [
@@ -34,6 +35,9 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = true, onItemClick }: SidebarProps) {
   const [location] = useLocation();
+  const { user } = useAuth();
+  const googleAvatar = user?.user_metadata?.avatar_url;
+  const profileImageUrl = user?.profile_image_url;
 
   return (
     <>
@@ -49,47 +53,68 @@ export default function Sidebar({ isOpen = true, onItemClick }: SidebarProps) {
         "lg:translate-x-0", // Always visible on desktop
         isOpen ? "translate-x-0" : "-translate-x-full" // Mobile slide animation
       )} style={{backgroundColor: '#111418', borderColor: '#3a3f47'}}>
-        <div className="p-6 pt-20 lg:pt-6"> {/* Extra top padding on mobile to account for navbar */}
-          <nav className="space-y-2">
-            {navItems.map((item) => {
-              const isActive = location === item.href;
-              const Icon = item.icon;
-              
-              return (
-                <Link key={item.href} href={item.href}>
-                  <div 
-                    onClick={onItemClick}
-                    className={cn(
-                      "flex items-center space-x-3 px-3 py-3 lg:py-2 rounded-lg font-medium transition-colors duration-200 cursor-pointer",
-                      isActive 
-                        ? "border" 
-                        : "text-white"
-                    )}
-                    style={{
-                      backgroundColor: isActive ? '#FFD300' : 'transparent',
-                      borderColor: isActive ? '#FFD300' : 'transparent',
-                      color: isActive ? '#090C11' : undefined
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.backgroundColor = '#111418';
-                        e.currentTarget.style.color = '#FFD300';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = 'white';
-                      }
-                    }}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </nav>
+        <div className="h-full flex flex-col">
+          <div className="flex items-center gap-3 px-6 py-6 border-b border-slate-800">
+            {/* User Avatar */}
+            {googleAvatar ? (
+              <img
+                src={googleAvatar}
+                alt={user?.username || user?.email}
+                className="w-10 h-10 rounded-full object-cover border-2 border-blue-400"
+              />
+            ) : profileImageUrl ? (
+              <img
+                src={profileImageUrl}
+                alt={user?.username || user?.email}
+                className="w-10 h-10 rounded-full object-cover border-2 border-blue-400"
+              />
+            ) : (
+              <User className="w-10 h-10 text-blue-400 bg-slate-700 rounded-full p-1" />
+            )}
+            <span className="text-xl font-bold text-white tracking-tight">FitTracker</span>
+          </div>
+          <div className="p-6 pt-20 lg:pt-6"> {/* Extra top padding on mobile to account for navbar */}
+            <nav className="space-y-2">
+              {navItems.map((item) => {
+                const isActive = location === item.href;
+                const Icon = item.icon;
+                
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <div 
+                      onClick={onItemClick}
+                      className={cn(
+                        "flex items-center space-x-3 px-3 py-3 lg:py-2 rounded-lg font-medium transition-colors duration-200 cursor-pointer",
+                        isActive 
+                          ? "border" 
+                          : "text-white"
+                      )}
+                      style={{
+                        backgroundColor: isActive ? '#FFD300' : 'transparent',
+                        borderColor: isActive ? '#FFD300' : 'transparent',
+                        color: isActive ? '#090C11' : undefined
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.backgroundColor = '#111418';
+                          e.currentTarget.style.color = '#FFD300';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                          e.currentTarget.style.color = 'white';
+                        }
+                      }}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span>{item.label}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
         </div>
       </aside>
     </>

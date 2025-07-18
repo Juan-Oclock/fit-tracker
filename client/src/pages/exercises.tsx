@@ -36,7 +36,6 @@ export default function Exercises() {
       muscleGroup: "",
       instructions: "",
       equipment: "",
-      imageUrl: "",
     },
   });
 
@@ -191,10 +190,18 @@ export default function Exercises() {
                           name="muscleGroup"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Muscle Group</FormLabel>
+                              <FormLabel>Muscle Groups</FormLabel>
                               <FormControl>
-                                <Input placeholder="e.g., Chest" {...field} />
+                                <Input 
+                                  placeholder="e.g., Upper Chest,Front Delts,Triceps" 
+                                  {...field} 
+                                  value={field.value || ""}
+                                  className="text-sm"
+                                />
                               </FormControl>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                Separate multiple muscle groups with commas
+                              </p>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -208,29 +215,18 @@ export default function Exercises() {
                           <FormItem>
                             <FormLabel>Equipment</FormLabel>
                             <FormControl>
-                              <Input placeholder="e.g., Barbell" {...field} />
+                              <Input 
+                                placeholder="e.g., Barbell, Dumbbells, None" 
+                                {...field} 
+                                value={field.value || ""}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="imageUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Image URL (Optional)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="/assets/exercise-name.png" {...field} />
-                            </FormControl>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                              Use /assets/filename.png for local images
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+
 
                       <FormField
                         control={form.control}
@@ -242,6 +238,7 @@ export default function Exercises() {
                               <Textarea 
                                 placeholder="Describe how to perform this exercise..."
                                 {...field}
+                                value={field.value || ""}
                               />
                             </FormControl>
                             <FormMessage />
@@ -287,22 +284,7 @@ export default function Exercises() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {exercises.map((exercise) => (
             <Card key={exercise.id} className="hover:shadow-md transition-shadow duration-200">
-              {exercise.imageUrl && (
-                <div className="aspect-video w-full overflow-hidden rounded-t-lg">
-                  <img
-                    src={exercise.imageUrl}
-                    alt={exercise.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.error('Image failed to load:', exercise.imageUrl);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    onLoad={() => {
-                      console.log('Image loaded successfully:', exercise.imageUrl);
-                    }}
-                  />
-                </div>
-              )}
+
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-lg">{exercise.name}</CardTitle>
@@ -314,8 +296,18 @@ export default function Exercises() {
               <CardContent>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Muscle Group</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">{exercise.muscleGroup}</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Muscle Groups</p>
+                    <div className="flex flex-wrap gap-1">
+                      {exercise.muscleGroup.split(',').map((muscle, index) => (
+                        <Badge 
+                          key={index} 
+                          variant="secondary" 
+                          className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                        >
+                          {muscle.trim()}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                   
                   {exercise.equipment && (

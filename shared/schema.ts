@@ -39,7 +39,6 @@ export const exercises = pgTable("exercises", {
   muscleGroup: text("muscle_group").notNull(),
   instructions: text("instructions"),
   equipment: text("equipment"),
-  imageUrl: text("image_url"),
 });
 
 export const workouts = pgTable("workouts", {
@@ -252,3 +251,20 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
 
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
+
+// Add muscle groups table
+export const muscleGroups = pgTable("muscle_groups", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMuscleGroupSchema = createInsertSchema(muscleGroups).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type MuscleGroup = typeof muscleGroups.$inferSelect;
+export type InsertMuscleGroup = z.infer<typeof insertMuscleGroupSchema>;

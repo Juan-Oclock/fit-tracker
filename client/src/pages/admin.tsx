@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertExerciseSchema, insertQuoteSchema, type InsertExercise, type Exercise, type Category, type Quote, type InsertQuote } from "@shared/schema";
 import { useExercises, useCreateExercise, useUpdateExercise, useDeleteExercise } from "@/hooks/use-exercises";
 import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from "@/hooks/use-categories";
+import { useMuscleGroups, useCreateMuscleGroup, useUpdateMuscleGroup, useDeleteMuscleGroup } from "@/hooks/use-muscle-groups";
 import { useQuotes, useCreateQuote, useUpdateQuote, useDeleteQuote } from "@/hooks/use-quotes";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -44,11 +45,17 @@ export default function Admin() {
   const updateExercise = useUpdateExercise();
   const deleteExercise = useDeleteExercise();
   
-  // Category hooks - keep these
-  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  // Category hooks
+  const { data: categories = [], isLoading: categoriesLoading, refetch: refetchCategories } = useCategories();
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
-  const updateCategory = useUpdateCategory(); // Add this line
+  const updateCategory = useUpdateCategory();
+  
+  // Muscle Group hooks
+  const { data: muscleGroups = [], isLoading: muscleGroupsLoading, refetch: refetchMuscleGroups } = useMuscleGroups();
+  const createMuscleGroup = useCreateMuscleGroup();
+  const updateMuscleGroup = useUpdateMuscleGroup();
+  const deleteMuscleGroup = useDeleteMuscleGroup();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
@@ -56,8 +63,6 @@ export default function Admin() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   
   // Category and Muscle Group Management
-  const [customMuscleGroups, setCustomMuscleGroups] = useState<string[]>([]);
-  const [hiddenDefaultMuscleGroups, setHiddenDefaultMuscleGroups] = useState<string[]>([]);
   const [newMuscleGroup, setNewMuscleGroup] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [newCategoryDescription, setNewCategoryDescription] = useState("");
@@ -78,10 +83,7 @@ export default function Admin() {
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
   const [quoteSearchQuery, setQuoteSearchQuery] = useState("");
   
-  // Muscle Group Edit State
-  const [editingMuscleGroup, setEditingMuscleGroup] = useState<string | null>(null);
-  const [editMuscleGroupName, setEditMuscleGroupName] = useState("");
-  const [isMuscleGroupDialogOpen, setIsMuscleGroupDialogOpen] = useState(false);
+
   
   const quoteForm = useForm<InsertQuote>({
     resolver: zodResolver(insertQuoteSchema),
@@ -102,7 +104,6 @@ export default function Admin() {
       muscleGroup: "",
       instructions: "",
       equipment: "",
-      imageUrl: "",
     },
   });
   const filteredExercises = exercises.filter((exercise) => {
@@ -150,7 +151,6 @@ export default function Admin() {
       muscleGroup: exercise.muscleGroup,
       instructions: exercise.instructions || "",
       equipment: exercise.equipment || "",
-      imageUrl: exercise.imageUrl || "",
     });
     setIsDialogOpen(true);
   };
@@ -163,7 +163,6 @@ export default function Admin() {
       muscleGroup: "",
       instructions: "",
       equipment: "",
-      imageUrl: "",
     });
     setIsDialogOpen(true);
   };
@@ -186,7 +185,7 @@ export default function Admin() {
         setCategoryForm({
           name: "",
           description: "",
-          // Remove isDefault: false
+          isDefault: false
         });
         setIsCategoryDialogOpen(false);
         toast({
@@ -205,6 +204,16 @@ export default function Admin() {
   
   const editCategory = async (category: Category, newName: string, newDescription: string) => {
     try {
+      // Validate input
+      if (!newName.trim()) {
+        toast({
+          title: "Validation Error",
+          description: "Category name cannot be empty.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await updateCategory.mutateAsync({
         id: category.id,
         data: {
@@ -224,32 +233,111 @@ export default function Admin() {
         title: "Category updated!",
         description: "Category has been updated successfully.",
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error updating category:", error);
+      
+      let errorMessage = "Failed to update category. Please try again.";
+      
+      // Parse error message from apiRequest format: "status: {message: 'error text'}"
+      if (error?.message) {
+        try {
+          // Extract JSON part after the status code
+          const match = error.message.match(/^\d+:\s*(.+)$/);
+          if (match) {
+            const jsonPart = match[1];
+            const parsed = JSON.parse(jsonPart);
+            if (parsed.message) {
+              errorMessage = parsed.message;
+            }
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, check for specific error patterns in the raw message
+          if (error.message.includes("409") || error.message.includes("already exists")) {
+            errorMessage = `A category with the name "${newName.trim()}" already exists. Please choose a different name.`;
+          } else if (error.message.includes("400") || error.message.includes("validation")) {
+            errorMessage = "Invalid category data. Please check your input and try again.";
+          } else if (error.message.includes("404") || error.message.includes("not found")) {
+            errorMessage = "Category not found. It may have been deleted by another user.";
+          }
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to update category. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
   };
-  
-  // Update removeCategory to allow deleting all categories
+
+  // Update removeCategory to handle cases where category might not be in local state yet
   const removeCategory = async (categoryName: string) => {
-    const category = categories.find(cat => cat.name === categoryName);
+    // First try to find in current categories
+    let category = categories.find(cat => cat.name === categoryName);
+    
+    // If not found, refetch categories to get the latest data
+    if (!category) {
+      console.log(`Category '${categoryName}' not found in local state, refetching...`);
+      try {
+        // Force refetch the categories to get the latest data
+        await refetchCategories();
+        // Try to find the category again after refetch
+        category = categories.find(cat => cat.name === categoryName);
+      } catch (refetchError) {
+        console.error("Error refetching categories:", refetchError);
+      }
+    }
+    
     if (category) {
       try {
+        console.log(`Attempting to delete category: ${category.name} (ID: ${category.id})`);
         await deleteCategory.mutateAsync(category.id);
         toast({
           title: "Category removed!",
           description: "Category has been removed from available categories.",
         });
-      } catch (error) {
+      } catch (error: any) {
+        console.error("Error deleting category:", error);
+        
+        let errorMessage = "Failed to delete category. Please try again.";
+        
+        // Parse error message from apiRequest format: "status: {message: 'error text'}"
+        if (error?.message) {
+          try {
+            // Extract JSON part after the status code
+            const match = error.message.match(/^\d+:\s*(.+)$/);
+            if (match) {
+              const jsonPart = match[1];
+              const parsed = JSON.parse(jsonPart);
+              if (parsed.message) {
+                errorMessage = parsed.message;
+              }
+            }
+          } catch (parseError) {
+            // If JSON parsing fails, check for specific error patterns in the raw message
+            if (error.message.includes("409") || error.message.includes("being used")) {
+              errorMessage = "Cannot delete category because it is being used by exercises or workouts.";
+            } else if (error.message.includes("404") || error.message.includes("not found")) {
+              errorMessage = "Category not found. It may have already been deleted.";
+            } else if (error.message.includes("400") || error.message.includes("Invalid")) {
+              errorMessage = "Invalid category. Please refresh the page and try again.";
+            }
+          }
+        }
+        
         toast({
           title: "Cannot delete",
-          description: "Category is in use or cannot be deleted.",
+          description: errorMessage,
           variant: "destructive",
         });
       }
+    } else {
+      console.error(`Category '${categoryName}' not found even after refetch`);
+      toast({
+        title: "Cannot delete",
+        description: "Category not found. It may have already been deleted or the page needs to be refreshed.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -257,102 +345,115 @@ export default function Admin() {
   const getAllCategories = () => categories.map(cat => cat.name);
 
   // Muscle Group Management Functions
-  const addMuscleGroup = () => {
-    console.log('addMuscleGroup called with:', newMuscleGroup);
-    console.log('Current muscle groups:', getAllMuscleGroups());
-    
-    if (newMuscleGroup.trim() && !getAllMuscleGroups().includes(newMuscleGroup.trim())) {
-      console.log('Adding muscle group:', newMuscleGroup.trim());
-      setCustomMuscleGroups(prev => {
-        const updated = [...prev, newMuscleGroup.trim()];
-        console.log('Updated custom muscle groups:', updated);
-        return updated;
+  const addMuscleGroup = async () => {
+    if (!newMuscleGroup.trim()) {
+      toast({
+        title: "Invalid input",
+        description: "Please enter a muscle group name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if muscle group already exists
+    const existingGroup = muscleGroups.find(mg => mg.name.toLowerCase() === newMuscleGroup.trim().toLowerCase());
+    if (existingGroup) {
+      toast({
+        title: "Duplicate muscle group",
+        description: `${newMuscleGroup} already exists in the muscle groups list.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await createMuscleGroup.mutateAsync({
+        name: newMuscleGroup.trim(),
+        description: null,
+        isDefault: false
       });
       setNewMuscleGroup("");
       toast({
         title: "Muscle group added!",
         description: `${newMuscleGroup} has been added to available muscle groups.`,
       });
-    } else {
-      console.log('Muscle group not added. Reasons:');
-      console.log('- Empty name:', !newMuscleGroup.trim());
-      console.log('- Already exists:', getAllMuscleGroups().includes(newMuscleGroup.trim()));
-      
-      if (getAllMuscleGroups().includes(newMuscleGroup.trim())) {
-        toast({
-          title: "Duplicate muscle group",
-          description: `${newMuscleGroup} already exists in the muscle groups list.`,
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
-  const removeMuscleGroup = (muscleGroup: string) => {
-    if (DEFAULT_MUSCLE_GROUPS.includes(muscleGroup as any)) {
-      // For default muscle groups, add to hidden list
-      setHiddenDefaultMuscleGroups(prev => [...prev, muscleGroup]);
+    } catch (error: any) {
       toast({
-        title: "Muscle group removed!",
-        description: `${muscleGroup} has been removed from available muscle groups.`,
-      });
-    } else {
-      // For custom muscle groups, remove from the array
-      setCustomMuscleGroups(prev => prev.filter(mg => mg !== muscleGroup));
-      toast({
-        title: "Muscle group removed!",
-        description: `${muscleGroup} has been removed from available muscle groups.`,
+        title: "Error adding muscle group",
+        description: error.message || "Failed to add muscle group. Please try again.",
+        variant: "destructive",
       });
     }
   };
 
-  const getAllMuscleGroups = () => [
-    ...DEFAULT_MUSCLE_GROUPS.filter(mg => !hiddenDefaultMuscleGroups.includes(mg)),
-    ...customMuscleGroups
-  ];
+  const removeMuscleGroup = async (muscleGroupName: string) => {
+    const muscleGroup = muscleGroups.find(mg => mg.name === muscleGroupName);
+    if (!muscleGroup) {
+      toast({
+        title: "Error",
+        description: "Muscle group not found.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await deleteMuscleGroup.mutateAsync(muscleGroup.id);
+      toast({
+        title: "Muscle group removed!",
+        description: `${muscleGroupName} has been removed from available muscle groups.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error removing muscle group",
+        description: error.message || "Failed to remove muscle group. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getAllMuscleGroups = () => muscleGroups.map(mg => mg.name);
 
   // Muscle Group Edit Functions
-  const handleEditMuscleGroup = (muscleGroup: string) => {
-    // Remove the restriction for default muscle groups
-    setEditingMuscleGroup(muscleGroup);
-    setEditMuscleGroupName(muscleGroup);
-    setIsMuscleGroupDialogOpen(true);
-  };
+  const updateMuscleGroupName = async (muscleGroupId: number, newName: string) => {
+    const existingGroup = muscleGroups.find(mg => mg.name.toLowerCase() === newName.toLowerCase() && mg.id !== muscleGroupId);
+    if (existingGroup) {
+      toast({
+        title: "Error",
+        description: "A muscle group with this name already exists.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  const saveEditedMuscleGroup = () => {
-    if (editMuscleGroupName.trim() && editingMuscleGroup) {
-      const newName = editMuscleGroupName.trim();
-      
-      // Check if new name already exists (excluding the current one being edited)
-      const allGroups = getAllMuscleGroups();
-      if (allGroups.includes(newName) && newName !== editingMuscleGroup) {
+    try {
+      const muscleGroup = muscleGroups.find(mg => mg.id === muscleGroupId);
+      if (!muscleGroup) {
         toast({
           title: "Error",
-          description: "A muscle group with this name already exists.",
+          description: "Muscle group not found.",
           variant: "destructive",
         });
         return;
       }
-      
-      if (DEFAULT_MUSCLE_GROUPS.includes(editingMuscleGroup as any)) {
-        // For default muscle groups: hide the original and add the new name as custom
-        setHiddenDefaultMuscleGroups(prev => [...prev, editingMuscleGroup]);
-        setCustomMuscleGroups(prev => [...prev, newName]);
-      } else {
-        // For custom muscle groups: update the name in place
-        setCustomMuscleGroups(prev => 
-          prev.map(mg => mg === editingMuscleGroup ? newName : mg)
-        );
-      }
+
+      await updateMuscleGroup.mutateAsync({
+        id: muscleGroupId,
+        name: newName.trim(),
+        description: muscleGroup.description,
+        isDefault: muscleGroup.isDefault
+      });
       
       toast({
         title: "Muscle group updated!",
         description: `Muscle group has been renamed to ${newName}.`,
       });
-      
-      setEditingMuscleGroup(null);
-      setEditMuscleGroupName("");
-      setIsMuscleGroupDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error updating muscle group",
+        description: error.message || "Failed to update muscle group. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -576,19 +677,7 @@ export default function Admin() {
                         )}
                       />
                       
-                      <FormField
-                        control={form.control}
-                        name="imageUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Image URL (Optional)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="https://example.com/image.jpg" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+
                       
                       <FormField
                         control={form.control}
@@ -627,18 +716,7 @@ export default function Admin() {
               {filteredExercises.map((exercise) => (
                 <Card key={exercise.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
-                    {exercise.imageUrl && (
-                      <div className="mb-3">
-                        <img 
-                          src={exercise.imageUrl} 
-                          alt={exercise.name}
-                          className="w-full h-32 object-cover rounded-md"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
+
                     <div className="space-y-2">
                       <div className="flex justify-between items-start">
                         <h3 className="font-semibold text-slate-900 dark:text-white">
@@ -887,50 +965,41 @@ export default function Admin() {
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">All Muscle Groups</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {/* Default Muscle Groups (not hidden) */}
-                {DEFAULT_MUSCLE_GROUPS.filter(mg => !hiddenDefaultMuscleGroups.includes(mg)).map((muscleGroup) => (
-                  <div key={muscleGroup} className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                    <span className="text-slate-700 dark:text-slate-300">{muscleGroup}</span>
+                {/* All Muscle Groups from API */}
+                {muscleGroups.map((muscleGroup) => (
+                  <div key={muscleGroup.id} className={`flex items-center justify-between p-3 rounded-lg ${
+                    muscleGroup.isDefault 
+                      ? 'bg-slate-100 dark:bg-slate-800' 
+                      : 'bg-blue-50 dark:bg-blue-900/20'
+                  }`}>
+                    <span className="text-slate-700 dark:text-slate-300">{muscleGroup.name}</span>
                     <div className="flex gap-1">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleEditMuscleGroup(muscleGroup)}
-                        className="text-slate-500 hover:text-slate-700 p-1 h-auto"
-                      >
+                        onClick={() => {
+                          // For now, we'll implement a simple prompt-based edit
+                          const newName = prompt('Enter new name for muscle group:', muscleGroup.name);
+                          if (newName && newName.trim() && newName.trim() !== muscleGroup.name) {
+                            updateMuscleGroupName(muscleGroup.id, newName.trim());
+                          }
+                        }}
+                        className={`p-1 h-auto ${
+                          muscleGroup.isDefault
+                            ? 'text-slate-500 hover:text-slate-700'
+                            : 'text-blue-600 hover:text-blue-700'
+                        }`}>
                         <Edit className="w-3 h-3" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeMuscleGroup(muscleGroup)}
-                        className="text-slate-500 hover:text-red-600 p-1 h-auto"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Custom Muscle Groups */}
-                {customMuscleGroups.map((muscleGroup) => (
-                  <div key={muscleGroup} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <span className="text-slate-700 dark:text-slate-300">{muscleGroup}</span>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditMuscleGroup(muscleGroup)}
-                        className="text-blue-600 hover:text-blue-700 p-1 h-auto"
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeMuscleGroup(muscleGroup)}
-                        className="text-red-600 hover:text-red-700 p-1 h-auto"
-                      >
+                        onClick={() => removeMuscleGroup(muscleGroup.name)}
+                        className={`p-1 h-auto ${
+                          muscleGroup.isDefault
+                            ? 'text-slate-500 hover:text-red-600'
+                            : 'text-blue-600 hover:text-red-600'
+                        }`}>
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
@@ -947,36 +1016,7 @@ export default function Admin() {
               </div>
             )}
 
-            {/* Edit Muscle Group Dialog */}
-            <Dialog open={isMuscleGroupDialogOpen} onOpenChange={setIsMuscleGroupDialogOpen}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Edit Muscle Group</DialogTitle>
-                  <DialogDescription>
-                    Rename the muscle group. This will update all exercises using this muscle group.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="muscle-group-name">Muscle Group Name</Label>
-                    <Input
-                      id="muscle-group-name"
-                      value={editMuscleGroupName}
-                      onChange={(e) => setEditMuscleGroupName(e.target.value)}
-                      placeholder="Enter muscle group name..."
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsMuscleGroupDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={saveEditedMuscleGroup} disabled={!editMuscleGroupName.trim()}>
-                    Save Changes
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+
           </TabsContent>
 
           {/* Quotes TabsContent */}

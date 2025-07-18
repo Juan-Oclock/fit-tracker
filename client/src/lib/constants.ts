@@ -1,7 +1,18 @@
 export const DEFAULT_MUSCLE_GROUPS = [
+  "Upper Chest",
+  "Middle Chest",
+  "Lower Chest",
   "Chest",
-  "Back", 
+  "Back",
+  "Lats",
+  "Lower Back",
+  "Middle Back",
+  "Traps",
+  "Rhomboids",
   "Shoulders",
+  "Front Delts",
+  "Side Delts",
+  "Rear Delts",
   "Biceps",
   "Triceps",
   "Forearms",
@@ -19,10 +30,31 @@ export const DEFAULT_MUSCLE_GROUPS = [
 
 export const DEFAULT_EXERCISE_CATEGORIES = [
   "strength",
-  "cardio", 
+  "cardio",
   "flexibility",
-  "mixed"
+  "mixed",
+  "HIIT",
+  "Plyometrics",
+  "Mobility",
+  "Balance",
+  "Yoga/Pilates",
+  "Rehabilitation/Prehab",
+  "Sport-Specific"
 ] as const;
+
+export const DEFAULT_EXERCISE_CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  strength: "Strength training exercises",
+  cardio: "Cardiovascular exercises",
+  flexibility: "Flexibility and mobility exercises",
+  mixed: "Mixed or combination routines",
+  HIIT: "High-Intensity Interval Training: short bursts of intense exercise alternated with recovery periods.",
+  Plyometrics: "Jumping and explosive movement exercises to develop power.",
+  Mobility: "Exercises focused on improving range of motion and joint health.",
+  Balance: "Exercises aimed at improving stability and coordination.",
+  "Yoga/Pilates": "Mind-body routines for flexibility, core strength, and relaxation.",
+  "Rehabilitation/Prehab": "Exercises for injury recovery or prevention.",
+  "Sport-Specific": "Training tailored for specific sports or athletic performance."
+};
 
 // Dynamic arrays that can be modified by admin
 export let MUSCLE_GROUPS = [...DEFAULT_MUSCLE_GROUPS];

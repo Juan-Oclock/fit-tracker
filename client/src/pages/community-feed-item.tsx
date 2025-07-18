@@ -18,7 +18,28 @@ interface Props {
 
 export function CommunityFeedItem({ activity }: Props) {
   const [goalPercent, setGoalPercent] = useState<number | null>(null);
+  const [googleAvatar, setGoogleAvatar] = useState<string | null>(null);
 
+  // Fetch Google avatar if not present in activity
+  useEffect(() => {
+    async function fetchGoogleAvatar() {
+      if (activity.user_id) {
+        // Try to fetch user_metadata from Supabase Auth users table
+        const { data, error } = await supabase
+          .from('users')
+          .select('google_avatar_url, user_metadata')
+          .eq('id', activity.user_id)
+          .single();
+        if (!error) {
+          // Prefer explicit google_avatar_url or user_metadata.avatar_url
+          setGoogleAvatar(data?.google_avatar_url || data?.user_metadata?.avatar_url || null);
+        }
+      }
+    }
+    fetchGoogleAvatar();
+  }, [activity.user_id]);
+
+  // Fetch goal percent for the current user activity
   useEffect(() => {
     async function fetchGoalPercent() {
       // Get current month and year
@@ -53,7 +74,14 @@ export function CommunityFeedItem({ activity }: Props) {
   return (
     <Card className="bg-slate-800">
       <CardContent className="flex items-center gap-4 p-4">
-        {activity.profile_image_url ? (
+        {/* Prefer Google avatar if available, then profile_image_url, then default */}
+        {googleAvatar ? (
+          <img
+            src={googleAvatar}
+            alt={activity.username}
+            className="w-10 h-10 rounded-full object-cover border-2 border-blue-400"
+          />
+        ) : activity.profile_image_url ? (
           <img
             src={activity.profile_image_url}
             alt={activity.username}
