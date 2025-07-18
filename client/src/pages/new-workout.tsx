@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
 import { Plus, Clock, Trash2 } from "lucide-react";
 import { ImageUpload } from "@/components/image-upload";
+import { ExerciseSelector } from "@/components/exercise-selector";
 import { upsertCommunityPresence } from "@/lib/community";
 import { supabase } from '@/lib/supabase';
 import { useAuth } from "@/hooks/useAuth";
@@ -268,62 +269,30 @@ export default function NewWorkout() {
                     )}
                   />
 
-                  {/* Choose Exercise Section - New prominent section */}
+                   {/* Choose Exercise Section - New prominent section */}
                   <div className="border-t pt-6">
                     <div className="mb-6">
                       <h3 className="text-lg font-semibold mb-2">Choose Exercise</h3>
                       <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                        Select an exercise from the dropdown to add it to your workout.
+                        Search for exercises by name, muscle groups, category, or equipment.
                       </p>
-                      
                       <div className="w-full">
-                        <FormLabel>Select Exercise</FormLabel>
-                        <Select 
-                          value="" 
-                          onValueChange={(value) => {
-                            const exerciseId = parseInt(value);
+                        <FormLabel className="mb-2 block">Search & Select Exercise</FormLabel>
+                        <ExerciseSelector
+                          exercises={exercises}
+                          onExerciseSelect={(exerciseId: number) => {
                             const isAlreadyAdded = fields.some(field => 
                               form.getValues(`exercises.${fields.indexOf(field)}.exerciseId`) === exerciseId
                             );
-                            
                             if (!isAlreadyAdded) {
-                              addExercise();
-                              const newIndex = fields.length;
-                              setTimeout(() => {
-                                form.setValue(`exercises.${newIndex}.exerciseId`, exerciseId);
-                              }, 0);
+                              append({ exerciseId, sets: undefined, reps: undefined, weight: undefined, restTime: undefined, notes: "" });
                             }
                           }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose an exercise to add" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {exercises.map((exercise) => {
-                              const isAlreadyAdded = fields.some(field => 
-                                form.getValues(`exercises.${fields.indexOf(field)}.exerciseId`) === exercise.id
-                              );
-                              
-                              return (
-                                <SelectItem 
-                                  key={exercise.id} 
-                                  value={exercise.id.toString()}
-                                  disabled={isAlreadyAdded}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span>{exercise.name}</span>
-                                    <span className="text-xs text-slate-500 capitalize">
-                                      ({exercise.category} • {exercise.muscleGroup})
-                                    </span>
-                                    {isAlreadyAdded && (
-                                      <span className="text-xs text-green-600">✓ Added</span>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
+                          selectedExerciseIds={fields.map(field => 
+                            form.getValues(`exercises.${fields.indexOf(field)}.exerciseId`)
+                          ).filter(id => id && id !== 0)}
+                          placeholder="Search exercises by name or muscle groups (e.g., 'chest', 'bench press')..."
+                        />
                       </div>
                     </div>
                   </div>
@@ -375,8 +344,10 @@ export default function NewWorkout() {
                                     <FormControl>
                                       <Input
                                         type="number"
+                                        placeholder="e.g. 3"
                                         {...field}
-                                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                                        value={field.value ?? ""}
+                                        min={1}
                                       />
                                     </FormControl>
                                     <FormMessage />
@@ -391,7 +362,11 @@ export default function NewWorkout() {
                                   <FormItem>
                                     <FormLabel>Reps</FormLabel>
                                     <FormControl>
-                                      <Input placeholder="8-12" {...field} />
+                                      <Input
+                                        placeholder="e.g. 8-12"
+                                        {...field}
+                                        value={field.value ?? ""}
+                                      />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -403,9 +378,15 @@ export default function NewWorkout() {
                                 name={`exercises.${index}.weight`}
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Weight (lbs)</FormLabel>
+                                    <FormLabel>Weight (kg)</FormLabel>
                                     <FormControl>
-                                      <Input placeholder="0" {...field} />
+                                      <Input
+                                        type="number"
+                                        placeholder="e.g. 60"
+                                        {...field}
+                                        value={field.value ?? ""}
+                                        min={0}
+                                      />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -413,59 +394,31 @@ export default function NewWorkout() {
                               />
                             </div>
 
-                            {/* Exercise Image and Instructions */}
+                            {/* Exercise Instructions Only */}
                             {(() => {
-                              if (selectedExercise?.imageUrl || selectedExercise?.instructions) {
+                              const selectedExercise = exercises.find(ex => ex.id === field.exerciseId);
+                              if (selectedExercise?.instructions) {
                                 return (
                                   <div className="mb-4">
-                                    <div className="flex gap-4">
-                                      {/* Image on the left */}
-                                      {selectedExercise?.imageUrl && (
-                                        <div className="w-1/2">
-                                          <div className="aspect-video w-full overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-white">
-                                            <img
-                                              src={selectedExercise.imageUrl}
-                                              alt={selectedExercise.name}
-                                              className="w-full h-full object-cover"
-                                              onError={(e) => {
-                                                console.error('Image failed to load:', selectedExercise.imageUrl);
-                                                e.currentTarget.style.display = 'none';
-                                              }}
-                                              onLoad={() => {
-                                                console.log('Image loaded successfully:', selectedExercise.imageUrl);
-                                              }}
-                                            />
-                                          </div>
-                                          <p className="text-center text-sm text-slate-600 dark:text-slate-400 mt-2">
-                                            {selectedExercise.name}
-                                          </p>
-                                        </div>
-                                      )}
-                                      
-                                      {/* Instructions on the right */}
-                                      {selectedExercise?.instructions && (
-                                        <div className="w-1/2">
-                                          <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">
-                                            Instructions
-                                          </h4>
-                                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                                            {selectedExercise.instructions}
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
+                                    <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-2">
+                                      Instructions
+                                    </h4>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                                      {selectedExercise.instructions}
+                                    </p>
                                   </div>
                                 );
                               }
                               return null;
                             })()} 
+
                           </Card>
                         );
                       })}
                     </div>
                   </div>
 
-                  {/* Workout Category Display - Auto-determined - Moved above Workout Photo */}
+/* ... */
                   <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -510,6 +463,7 @@ export default function NewWorkout() {
                           <Textarea 
                             placeholder="Add any notes about this workout..."
                             {...field}
+                            value={field.value ?? ""}
                           />
                         </FormControl>
                         <FormMessage />
