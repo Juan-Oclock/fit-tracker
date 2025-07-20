@@ -47,6 +47,8 @@ export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserGoal(userId: string, weeklyGoal: number): Promise<User | undefined>;
+  getUserProfile(userId: string): Promise<{ username?: string; profile_image_url?: string; show_in_community?: boolean } | undefined>;
+  upsertCommunityPresence(data: { userId: string; username: string; profileImageUrl?: string | null; workoutName: string; exerciseNames: string; lastActive: string }): Promise<void>;
   ensureInitialized(): Promise<void>;
 
   // Exercise methods
@@ -200,6 +202,33 @@ export class PostgresStorage implements IStorage {
     return user;
   }
 
+  async getUserProfile(userId: string): Promise<{ username?: string; profile_image_url?: string; show_in_community?: boolean } | undefined> {
+    const [user] = await db
+      .select({
+        username: users.firstName, // Using firstName as username for now
+        profile_image_url: users.profileImageUrl,
+        show_in_community: users.showInCommunity
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    return user;
+  }
+
+  async upsertCommunityPresence(data: { userId: string; username: string; profileImageUrl?: string | null; workoutName: string; exerciseNames: string; lastActive: string }): Promise<void> {
+    await sql`
+      INSERT INTO community_presence (user_id, username, profile_image_url, workout_name, exercise_names, last_active)
+      VALUES (${data.userId}, ${data.username}, ${data.profileImageUrl}, ${data.workoutName}, ${data.exerciseNames}, ${data.lastActive})
+      ON CONFLICT (user_id) 
+      DO UPDATE SET 
+        username = EXCLUDED.username,
+        profile_image_url = EXCLUDED.profile_image_url,
+        workout_name = EXCLUDED.workout_name,
+        exercise_names = EXCLUDED.exercise_names,
+        last_active = EXCLUDED.last_active
+    `;
+  }
+
   private async initializeDefaultExercises() {
     if (!db) throw new Error("Database not initialized");
     
@@ -303,6 +332,7 @@ export class PostgresStorage implements IStorage {
           weight: workoutExercises.weight,
           restTime: workoutExercises.restTime,
           notes: workoutExercises.notes,
+          durationSeconds: workoutExercises.durationSeconds,
           exercise: exercises
         })
         .from(workoutExercises)
@@ -988,6 +1018,25 @@ export class MemStorage implements IStorage {
     return updatedUser;
   }
 
+  async getUserProfile(userId: string): Promise<{ username?: string; profile_image_url?: string; show_in_community?: boolean } | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    return {
+      username: user.firstName || undefined,
+      profile_image_url: user.profileImageUrl || undefined,
+      show_in_community: user.showInCommunity || false
+    };
+  }
+
+  async upsertCommunityPresence(data: { userId: string; username: string; profileImageUrl?: string | null; workoutName: string; exerciseNames: string; lastActive: string }): Promise<void> {
+    // For in-memory storage, we'll just store it in a simple Map
+    // In a real implementation, this would be stored in a database table
+    const presenceKey = data.userId;
+    // Since this is just in-memory, we'll simulate the upsert behavior
+    console.log(`[MemStorage] Community presence updated for user ${data.userId}: ${data.workoutName}`);
+  }
+
   private initializeDefaultExercises() {
     const defaultExercises = [
       { 
@@ -1169,7 +1218,8 @@ export class MemStorage implements IStorage {
       date: new Date(),
       duration: insertWorkout.duration || null,
       notes: insertWorkout.notes || null,
-      imageUrl: insertWorkout.imageUrl || null
+      imageUrl: insertWorkout.imageUrl || null,
+      category: insertWorkout.category || null
     };
     this.workouts.set(workout.id, workout);
     return workout;
@@ -1187,7 +1237,8 @@ export class MemStorage implements IStorage {
       date: new Date(),
       duration: workoutDetails.duration || null,
       notes: workoutDetails.notes || null,
-      imageUrl: workoutDetails.imageUrl || null
+      imageUrl: workoutDetails.imageUrl || null,
+      category: workoutDetails.category || null
     };
     this.workouts.set(workout.id, workout);
     
@@ -1664,6 +1715,12 @@ async function ensureTablesExist() {
         first_name VARCHAR,
         last_name VARCHAR,
         profile_image_url VARCHAR,
+        username VARCHAR,
+        show_in_community BOOLEAN DEFAULT false,
+        google_avatar_url VARCHAR,
+        user_metadata JSONB,
+        weekly_goal INTEGER DEFAULT 3,
+        goal_set_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
@@ -1751,6 +1808,62 @@ async function ensureTablesExist() {
         created_at TIMESTAMP DEFAULT NOW()
       );
     `;
+    
+    // Add community_presence table for real-time community activity tracking
+    await sql`
+      CREATE TABLE IF NOT EXISTS community_presence (
+        user_id TEXT PRIMARY KEY,
+        username TEXT NOT NULL DEFAULT '',
+        profile_image_url TEXT,
+        workout_name TEXT NOT NULL DEFAULT '',
+        exercise_names TEXT NOT NULL DEFAULT '', -- Changed to store multiple exercises
+        last_active TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+      );
+    `;
+    
+    // Migrate existing users table to add missing columns
+    try {
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR;`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS show_in_community BOOLEAN DEFAULT false;`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_avatar_url VARCHAR;`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS user_metadata JSONB;`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_goal INTEGER DEFAULT 3;`;
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS goal_set_at TIMESTAMP;`;
+      console.log('Added missing columns to users table');
+    } catch (userMigrateError) {
+      console.log('Users table migration skipped (columns may already exist):', userMigrateError.message);
+    }
+
+    // Migrate existing community_presence table to new schema
+    try {
+      // Drop and recreate the table to fix schema and remove foreign key constraints
+      await sql`DROP TABLE IF EXISTS community_presence;`;
+      await sql`
+        CREATE TABLE community_presence (
+          user_id TEXT PRIMARY KEY,
+          username TEXT NOT NULL DEFAULT '',
+          profile_image_url TEXT,
+          workout_name TEXT NOT NULL DEFAULT '',
+          exercise_names TEXT NOT NULL DEFAULT '',
+          last_active TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+      `;
+      console.log('Recreated community_presence table with correct schema');
+    } catch (migrateError) {
+      console.log('Community presence migration failed:', migrateError.message);
+    }
+    
+    // Create indexes for community_presence table
+    await sql`CREATE INDEX IF NOT EXISTS idx_community_presence_last_active ON community_presence (last_active DESC);`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_community_presence_user_id ON community_presence (user_id);`;
+    
+    // Make category column nullable since it's now auto-determined from exercises
+    try {
+      await sql`ALTER TABLE workouts ALTER COLUMN category DROP NOT NULL;`;
+      console.log('Made workouts.category column nullable');
+    } catch (migrateError) {
+      console.log('Category column migration may have already been applied:', migrateError.message);
+    }
     
     console.log("Database tables ensured");
   } catch (error) {

@@ -8,7 +8,7 @@ interface CommunityUserActivity {
   username: string;
   profile_image_url?: string | null;
   workout_name: string;
-  exercise_name: string;
+  exercise_names: string; // Comma-separated exercise names
   last_active: string; // ISO string
 }
 
@@ -24,15 +24,18 @@ export function CommunityFeedItem({ activity }: Props) {
   useEffect(() => {
     async function fetchGoogleAvatar() {
       if (activity.user_id) {
-        // Try to fetch user_metadata from Supabase Auth users table
+        // Try to fetch user_metadata from Supabase users table
         const { data, error } = await supabase
           .from('users')
           .select('google_avatar_url, user_metadata')
           .eq('id', activity.user_id)
-          .single();
-        if (!error) {
+          .maybeSingle(); // Use maybeSingle to handle non-existent users
+        
+        if (!error && data) {
           // Prefer explicit google_avatar_url or user_metadata.avatar_url
           setGoogleAvatar(data?.google_avatar_url || data?.user_metadata?.avatar_url || null);
+        } else if (error) {
+          console.log('Could not fetch user avatar:', error.message);
         }
       }
     }
@@ -96,7 +99,7 @@ export function CommunityFeedItem({ activity }: Props) {
           <span className="font-semibold text-green-400">{activity.workout_name}</span>
           <span className="text-slate-400"> doing </span>
           <span className="font-semibold text-yellow-300 flex items-center gap-1">
-            <Dumbbell className="inline w-4 h-4" />{activity.exercise_name}
+            <Dumbbell className="inline w-4 h-4" />{activity.exercise_names}
           </span>
         </div>
         {goalPercent !== null ? (

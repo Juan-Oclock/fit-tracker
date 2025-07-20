@@ -218,7 +218,13 @@ export default function History() {
                               <>
                                 <span className="text-slate-400">•</span>
                                 <span className="text-sm text-slate-600 dark:text-slate-400">
-                                  {workout.duration} minutes
+                                  {(() => {
+                                    // Duration is now stored in seconds
+                                    const totalSeconds = workout.duration;
+                                    const m = Math.floor(totalSeconds / 60);
+                                    const s = totalSeconds % 60;
+                                    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+                                  })()}
                                 </span>
                               </>
                             )}
@@ -242,7 +248,15 @@ export default function History() {
                           {workout.duration && (
                             <>
                               <span>•</span>
-                              <span>{workout.duration} minutes</span>
+                              <span>
+                                {(() => {
+                                  // Duration is now stored in seconds
+                                  const totalSeconds = workout.duration;
+                                  const m = Math.floor(totalSeconds / 60);
+                                  const s = totalSeconds % 60;
+                                  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+                                })()}
+                              </span>
                             </>
                           )}
                         </div>

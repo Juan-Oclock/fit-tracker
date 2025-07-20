@@ -2,7 +2,7 @@ import StatsCards from "@/components/dashboard/stats-cards";
 import QuickActions from "@/components/dashboard/quick-actions";
 // import ProgressChart from "@/components/dashboard/progress-chart"; // Removed Weekly Progress
 import RecentWorkouts from "@/components/dashboard/recent-workouts";
-import ExerciseCategories from "@/components/dashboard/exercise-categories";
+import ActiveWorkoutTimer from "@/components/dashboard/active-workout-timer";
 import { GoalCard } from "@/components/goal/goal-card";
 
 export default function Dashboard() {
@@ -25,7 +25,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* <ProgressChart /> */} {/* Removed Weekly Progress section */}
-        <ExerciseCategories />
+        <ActiveWorkoutTimer />
       </div>
     </div>
   );

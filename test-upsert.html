@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Community Upsert</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Test Community Presence Upsert</h1>
+    <button onclick="testUpsert()">Test Upsert</button>
+    <div id="result"></div>
+
+    <script>
+        // Get Supabase config from the main app
+        const supabaseUrl = 'https://iqkpqhvdqpxhkzqcfhzp.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlxa3BxaHZkcXB4aGt6cWNmaHpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjE0NzU1MzIsImV4cCI6MjAzNzA1MTUzMn0.Qbf6Ql4MFbBZgJQJZJQJZJQJZJQJZJQJZJQJZJQJZJQ';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        async function testUpsert() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                console.log('Testing community presence upsert...');
+                
+                const testData = {
+                    user_id: 'test-user-' + Date.now(),
+                    username: 'Test User',
+                    profile_image_url: null,
+                    workout_name: 'Test Workout',
+                    exercise_names: 'Push-ups, Squats, Bench Press',
+                    last_active: new Date().toISOString(),
+                };
+                
+                console.log('Upserting data:', testData);
+                
+                const { data, error } = await supabase
+                    .from('community_presence')
+                    .upsert(testData);
+                
+                console.log('Upsert result:', { data, error });
+                
+                if (error) {
+                    resultDiv.innerHTML = `<div style="color: red;">Error: ${error.message}</div><pre>${JSON.stringify(error, null, 2)}</pre>`;
+                } else {
+                    resultDiv.innerHTML = `<div style="color: green;">Success!</div><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    
+                    // Now query to see if it was inserted
+                    const { data: queryData, error: queryError } = await supabase
+                        .from('community_presence')
+                        .select('*')
+                        .eq('user_id', testData.user_id);
+                    
+                    console.log('Query result:', { queryData, queryError });
+                    resultDiv.innerHTML += `<div>Query result:</div><pre>${JSON.stringify(queryData, null, 2)}</pre>`;
+                }
+            } catch (err) {
+                console.error('Exception:', err);
+                resultDiv.innerHTML = `<div style="color: red;">Exception: ${err.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

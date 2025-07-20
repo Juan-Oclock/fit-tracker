@@ -84,10 +84,20 @@ export default function RecentWorkouts() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-slate-900 dark:text-white">
-                    {workout.duration ? `${workout.duration}m` : "No duration"}
+                    {workout.duration && workout.duration > 0
+                      ? (() => {
+                          // Duration is now stored in seconds, not minutes
+                          const totalSeconds = workout.duration;
+                          const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+                          const s = (totalSeconds % 60).toString().padStart(2, "0");
+                          return `${m}:${s}`;
+                        })()
+                      : "No duration"}
                   </p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Exercise: {workout.exercises && workout.exercises.length > 0 ? workout.exercises.map(e => e.exercise?.name).join(', ') : 'None'}
+                    Exercise: {workout.exercises && workout.exercises.length > 0 ? 
+                      workout.exercises.map(e => e.exercise?.name).filter(name => name).join(', ') || 'Unknown'
+                      : 'None'}
                   </p>
                 </div>
               </div>

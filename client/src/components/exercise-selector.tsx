@@ -12,13 +12,15 @@ interface ExerciseSelectorProps {
   onExerciseSelect: (exerciseId: number) => void;
   selectedExerciseIds: number[];
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export function ExerciseSelector({ 
   exercises, 
   onExerciseSelect, 
   selectedExerciseIds,
-  placeholder = "Search exercises by name or muscle groups..." 
+  placeholder = "Search exercises by name or muscle groups...",
+  disabled = false
 }: ExerciseSelectorProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -74,14 +76,17 @@ export function ExerciseSelector({
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
         <Input
           type="text"
-          placeholder={placeholder}
+          placeholder={disabled ? "Exercise completed - cannot change" : placeholder}
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setIsOpen(true);
+            if (!disabled) {
+              setSearchTerm(e.target.value);
+              setIsOpen(true);
+            }
           }}
-          onFocus={() => setIsOpen(true)}
-          className="pl-10 pr-10"
+          onFocus={() => !disabled && setIsOpen(true)}
+          className={`pl-10 pr-10 ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
+          disabled={disabled}
         />
         {searchTerm && (
           <Button
@@ -96,7 +101,7 @@ export function ExerciseSelector({
         )}
       </div>
 
-      {isOpen && (
+      {isOpen && !disabled && (
         <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 shadow-lg border">
           <CardContent className="p-0">
             <ScrollArea className="h-full max-h-80">
@@ -163,7 +168,7 @@ export function ExerciseSelector({
       )}
 
       {/* Overlay to close dropdown when clicking outside */}
-      {isOpen && (
+      {isOpen && !disabled && (
         <div 
           className="fixed inset-0 z-40" 
           onClick={() => setIsOpen(false)}

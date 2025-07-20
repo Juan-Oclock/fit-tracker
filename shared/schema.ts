@@ -47,7 +47,7 @@ export const workouts = pgTable("workouts", {
   name: text("name").notNull(),
   date: timestamp("date").notNull().defaultNow(),
   duration: integer("duration"), // in minutes
-  category: text("category").notNull(),
+  category: text("category"), // Auto-determined from exercises, nullable
   notes: text("notes"),
   imageUrl: text("image_url"), // Base64 compressed image or URL
 });
@@ -60,6 +60,7 @@ export const workoutExercises = pgTable("workout_exercises", {
   reps: text("reps"), // can be "8-12" or "10"
   weight: decimal("weight"),
   restTime: integer("rest_time"), // in seconds
+  durationSeconds: integer("duration_seconds").notNull().default(0), // NEW: Track exercise timer duration
   notes: text("notes"),
 });
 
@@ -84,13 +85,13 @@ export const insertWorkoutSchema = createInsertSchema(workouts).omit({
 
 export const insertWorkoutExerciseSchema = createInsertSchema(workoutExercises).omit({
   id: true,
-});
+}); // durationSeconds is now included by default
 
 // Extended workout schema that includes exercises for creation
 export const createWorkoutWithExercisesSchema = insertWorkoutSchema.extend({
   exercises: z.array(insertWorkoutExerciseSchema.omit({ workoutId: true })).optional(),
   imageUrl: z.string().nullable().optional(),
-});
+}); // durationSeconds is included in exercises
 
 export const insertPersonalRecordSchema = createInsertSchema(personalRecords).omit({
   id: true,

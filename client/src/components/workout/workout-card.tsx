@@ -64,7 +64,13 @@ export default function WorkoutCard({
               {workout.duration && (
                 <div className="flex items-center text-sm text-slate-600 dark:text-slate-400">
                   <Clock className="w-4 h-4 mr-1" />
-                  {workout.duration}m
+                  {(() => {
+                    // Duration is now stored in seconds
+                    const totalSeconds = workout.duration;
+                    const m = Math.floor(totalSeconds / 60);
+                    const s = totalSeconds % 60;
+                    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+                  })()}
                 </div>
               )}
             </div>

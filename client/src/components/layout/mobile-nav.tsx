@@ -7,6 +7,7 @@ import {
   Settings 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useActiveWorkoutTimers } from "@/hooks/use-active-workout-timers";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: BarChart3 },
@@ -18,6 +19,10 @@ const navItems = [
 
 export default function MobileNav() {
   const [location] = useLocation();
+  const { activeTimers, restTimers } = useActiveWorkoutTimers();
+  
+  // Check if there are any active timers
+  const hasActiveTimers = activeTimers.length > 0 || restTimers.length > 0;
 
   return (
     <nav 
@@ -31,6 +36,42 @@ export default function MobileNav() {
         {navItems.map((item) => {
           const isActive = location === item.href;
           const Icon = item.icon;
+          const isNewWorkout = item.href === "/new-workout";
+          const isDisabled = isNewWorkout && hasActiveTimers;
+          
+          if (isDisabled) {
+            return (
+              <div 
+                key={item.href}
+                className={cn(
+                  "flex flex-col items-center justify-center p-2 min-w-16 transition-all duration-200 cursor-not-allowed opacity-50",
+                  "text-slate-400"
+                )}
+              >
+                <div 
+                  className={cn(
+                    "p-2 rounded-lg transition-all duration-200"
+                  )}
+                  style={{
+                    backgroundColor: '#666666',
+                    color: '#ffffff'
+                  }}
+                >
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span 
+                  className={cn(
+                    "text-xs font-medium mt-1 transition-colors duration-200"
+                  )}
+                  style={{
+                    color: '#666666'
+                  }}
+                >
+                  {item.label}
+                </span>
+              </div>
+            );
+          }
           
           return (
             <Link key={item.href} href={item.href}>

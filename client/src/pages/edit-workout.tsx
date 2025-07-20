@@ -204,10 +204,11 @@ export default function EditWorkout({ params }: EditWorkoutProps) {
       username: profile?.username || user.email,
       profileImageUrl: profile?.profile_image_url || null,
       workoutName: data.name,
-      exerciseName: data.exercises && data.exercises.length > 0 ? (() => {
-        const ex = exercises.find(e => e.id === data.exercises[0].exerciseId);
-        return ex?.name || "";
-      })() : "",
+      exerciseNames: data.exercises && data.exercises.length > 0 ? 
+        data.exercises.map(ex => {
+          const exercise = exercises.find(e => e.id === ex.exerciseId);
+          return exercise?.name || "";
+        }).filter(name => name) : [],
     });
   } catch (err) {
     console.error("Failed to upsert community presence:", err);

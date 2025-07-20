@@ -415,21 +415,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const storage = await getStorage();
       const userId = req.user.id;
       
+      console.log("Received workout data:", JSON.stringify(req.body, null, 2));
+      
       // Check if the request contains exercises (new format) or is a simple workout (legacy)
       if (req.body.exercises !== undefined) {
         // New format: workout with exercises
+        console.log("Validating workout with exercises...");
         const validatedData = createWorkoutWithExercisesSchema.parse(req.body);
+        console.log("Validation successful, creating workout...");
         const workout = await storage.createWorkoutWithExercises(validatedData, userId);
         res.status(201).json(workout);
       } else {
         // Legacy format: simple workout
+        console.log("Validating simple workout...");
         const validatedData = insertWorkoutSchema.parse(req.body);
         const workout = await storage.createWorkout(validatedData, userId);
         res.status(201).json(workout);
       }
     } catch (error) {
       console.error("Workout creation error:", error);
-      res.status(400).json({ message: "Invalid workout data" });
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      res.status(400).json({ message: "Invalid workout data", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
@@ -761,6 +770,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(500).json({ error: 'Failed to fetch workouts with exercises' });
   }
 });
+
+  // Community presence endpoint for updating user activity feed
+  app.post('/api/community/presence', isAuthenticated, async (req: any, res) => {
+    try {
+      const { workoutName, exerciseNames } = req.body;
+      
+      if (!workoutName || !Array.isArray(exerciseNames)) {
+        return res.status(400).json({ error: 'workoutName and exerciseNames array are required' });
+      }
+      
+      const storage = await getStorage();
+      
+      // Get user profile data
+      const userProfile = await storage.getUserProfile(req.user.id);
+      const username = userProfile?.username || req.user.email || 'Anonymous';
+      const profileImageUrl = userProfile?.profile_image_url || null;
+      
+      // Check if user is opted in for community sharing
+      const showInCommunity = userProfile?.show_in_community || false;
+      if (!showInCommunity) {
+        return res.status(200).json({ message: 'User not opted in for community sharing' });
+      }
+      
+      // Upsert community presence
+      await storage.upsertCommunityPresence({
+        userId: req.user.id,
+        username,
+        profileImageUrl,
+        workoutName,
+        exerciseNames: exerciseNames.join(', '),
+        lastActive: new Date().toISOString()
+      });
+      
+      res.json({ success: true, message: 'Community presence updated successfully' });
+    } catch (error) {
+      console.error('Error updating community presence:', error);
+      res.status(500).json({ error: 'Failed to update community presence' });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

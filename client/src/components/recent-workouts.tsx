@@ -93,7 +93,15 @@ export function RecentWorkouts() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium">{workout.duration || 60}m</div>
+                  <div className="text-sm font-medium">
+                    {(() => {
+                      // Duration is now stored in seconds
+                      const totalSeconds = workout.duration || 60;
+                      const m = Math.floor(totalSeconds / 60);
+                      const s = totalSeconds % 60;
+                      return m > 0 ? `${m}m ${s}s` : `${s}s`;
+                    })()}
+                  </div>
                   <div className="text-xs text-gray-400">
                     {displayText}
                   </div>
