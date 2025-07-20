@@ -771,6 +771,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 });
 
+  // Debug endpoint to check workout duration data
+  app.get('/api/debug/workouts', isAuthenticated, async (req: any, res) => {
+    try {
+      const storage = await getStorage();
+      const workouts = await storage.getWorkoutsWithExercises(req.user.id);
+      
+      const debugData = workouts.map(workout => ({
+        id: workout.id,
+        name: workout.name,
+        duration: workout.duration,
+        exerciseCount: workout.exercises?.length || 0,
+        totalExerciseDuration: workout.exercises?.reduce((sum, ex) => sum + (ex.durationSeconds || 0), 0) || 0
+      }));
+      
+      res.json(debugData);
+    } catch (error) {
+      console.error('Error in debug endpoint:', error);
+      res.status(500).json({ error: 'Debug endpoint failed' });
+    }
+  });
+
+  // Fix endpoint to update existing workout durations
+  app.post('/api/fix/workout-durations', isAuthenticated, async (req: any, res) => {
+    try {
+      const storage = await getStorage();
+      const workouts = await storage.getWorkoutsWithExercises(req.user.id);
+      
+      let updatedCount = 0;
+      
+      for (const workout of workouts) {
+        // Only update if duration is null, 0, or missing
+        if (!workout.duration || workout.duration === 0) {
+          const totalExerciseDurationSeconds = workout.exercises?.reduce((sum, ex) => sum + (ex.durationSeconds || 0), 0) || 0;
+          
+          if (totalExerciseDurationSeconds > 0) {
+            const durationMinutes = Math.round(totalExerciseDurationSeconds / 60);
+            await storage.updateWorkoutDuration(workout.id, durationMinutes);
+            updatedCount++;
+          }
+        }
+      }
+      
+      res.json({ message: `Updated ${updatedCount} workouts with calculated durations` });
+    } catch (error) {
+      console.error('Error fixing workout durations:', error);
+      res.status(500).json({ error: 'Failed to fix workout durations' });
+    }
+  });
+
   // Community presence endpoint for updating user activity feed
   app.post('/api/community/presence', isAuthenticated, async (req: any, res) => {
     try {

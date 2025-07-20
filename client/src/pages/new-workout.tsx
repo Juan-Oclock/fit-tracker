@@ -311,8 +311,13 @@ export default function NewWorkout() {
         return;
       }
 
+      // Calculate total workout duration in minutes from exercise durations
+      const totalDurationSeconds = allExercises.reduce((sum, ex) => sum + ex.durationSeconds, 0);
+      const totalDurationMinutes = Math.round(totalDurationSeconds / 60);
+
       const workoutData = {
         ...data,
+        duration: totalDurationMinutes, // Add total workout duration in minutes
         exercises: allExercises.map(ex => ({
           exerciseId: ex.exerciseId,
           sets: ex.sets,

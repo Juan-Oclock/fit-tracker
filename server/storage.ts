@@ -68,6 +68,7 @@ export interface IStorage {
   createWorkout(workout: InsertWorkout, userId: string): Promise<Workout>;
   createWorkoutWithExercises(workoutData: CreateWorkoutWithExercises, userId: string): Promise<WorkoutWithExercises>;
   updateWorkout(id: number, workout: Partial<InsertWorkout>, userId: string): Promise<Workout | undefined>;
+  updateWorkoutDuration(id: number, durationMinutes: number): Promise<void>;
   deleteWorkout(id: number, userId: string): Promise<boolean>;
 
   // Workout Exercise methods
@@ -429,6 +430,10 @@ export class PostgresStorage implements IStorage {
   async updateWorkout(id: number, updateData: Partial<InsertWorkout>, userId: string): Promise<Workout | undefined> {
     const result = await db.update(workouts).set(updateData).where(and(eq(workouts.id, id), eq(workouts.userId, userId))).returning();
     return result[0];
+  }
+
+  async updateWorkoutDuration(id: number, durationMinutes: number): Promise<void> {
+    await db.update(workouts).set({ duration: durationMinutes }).where(eq(workouts.id, id));
   }
 
   async deleteWorkout(id: number, userId: string): Promise<boolean> {
@@ -1283,6 +1288,14 @@ export class MemStorage implements IStorage {
     const updatedWorkout = { ...workout, ...updateData };
     this.workouts.set(id, updatedWorkout);
     return updatedWorkout;
+  }
+
+  async updateWorkoutDuration(id: number, durationMinutes: number): Promise<void> {
+    const workout = this.workouts.get(id);
+    if (workout) {
+      const updatedWorkout = { ...workout, duration: durationMinutes };
+      this.workouts.set(id, updatedWorkout);
+    }
   }
 
   async deleteWorkout(id: number, userId: string): Promise<boolean> {

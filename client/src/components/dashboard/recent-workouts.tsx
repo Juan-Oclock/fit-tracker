@@ -4,11 +4,92 @@ import { Zap } from "lucide-react";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import { ImageLightbox } from "@/components/image-lightbox";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Bug, Wrench } from "lucide-react";
+import { useState } from "react";
+import { apiRequest } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function RecentWorkouts() {
-  const { data: workouts, isLoading } = useWorkoutsWithExercises();
+  const { data: workouts, isLoading, error } = useWorkoutsWithExercises();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [debugging, setDebugging] = useState(false);
+  const [fixing, setFixing] = useState(false);
+
+
 
   const recentWorkouts = workouts?.slice(0, 3) || [];
+
+  const debugWorkouts = async () => {
+    setDebugging(true);
+    try {
+      const response = await apiRequest('GET', '/api/debug/workouts');
+      const data = await response.json();
+      
+      console.log('=== WORKOUT DEBUG DATA ===');
+      data.forEach((workout: any) => {
+        const needsFix = !workout.duration || workout.duration === 0;
+        const calculatedDuration = Math.round(workout.totalExerciseDuration / 60);
+        console.log(`Workout: ${workout.name}`);
+        console.log(`  Stored Duration: ${workout.duration || 'None'} minutes`);
+        console.log(`  Exercise Count: ${workout.exerciseCount}`);
+        console.log(`  Total Exercise Time: ${workout.totalExerciseDuration} seconds`);
+        console.log(`  Calculated Duration: ${calculatedDuration} minutes`);
+        console.log(`  Needs Fix: ${needsFix ? 'YES' : 'NO'}`);
+        
+        // Show exercise details for workouts that need fixing
+        if (needsFix && workout.exercises) {
+          console.log(`  Exercise Details:`);
+          workout.exercises.forEach((ex: any, i: number) => {
+            console.log(`    ${i+1}. ${ex.name || 'Unknown'}: ${ex.durationSeconds || 0} seconds`);
+          });
+        }
+        console.log('---');
+      });
+      
+      const needsFixCount = data.filter((w: any) => !w.duration || w.duration === 0).length;
+      toast({
+        title: "Debug Complete",
+        description: `Found ${data.length} workouts, ${needsFixCount} need fixing. Check console for details.`,
+      });
+    } catch (error) {
+      console.error('Debug error:', error);
+      toast({
+        title: "Debug Failed",
+        description: "Could not fetch debug data. Check console for errors.",
+        variant: "destructive"
+      });
+    } finally {
+      setDebugging(false);
+    }
+  };
+
+  const fixWorkouts = async () => {
+    setFixing(true);
+    try {
+      const response = await apiRequest('POST', '/api/fix/workout-durations');
+      const result = await response.json();
+      
+      toast({
+        title: "Fix Complete",
+        description: result.message,
+      });
+      // Invalidate and refetch workouts data
+      await queryClient.invalidateQueries({ queryKey: ['/api/workouts-with-exercises'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/workouts-with-exercises'] });
+    } catch (error) {
+      console.error('Fix error:', error);
+      toast({
+        title: "Fix Failed",
+        description: "Could not fix workout durations. Check console for errors.",
+        variant: "destructive"
+      });
+    } finally {
+      setFixing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -20,6 +101,16 @@ export default function RecentWorkouts() {
               <div key={i} className="h-16 bg-slate-200 dark:bg-slate-700 rounded"></div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent>
+          <p className="text-red-500">Error loading workouts</p>
         </CardContent>
       </Card>
     );
@@ -39,11 +130,29 @@ export default function RecentWorkouts() {
       <CardContent className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Recent Workouts</h3>
-          <Link href="/history">
-            <span className="text-sm font-medium transition-colors duration-200 cursor-pointer" style={{ color: '#FFD300' }}>
-              View All
-            </span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={debugWorkouts}
+              disabled={debugging}
+            >
+              <Bug className="h-4 w-4" />
+              Debug
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={fixWorkouts}
+              disabled={fixing}
+            >
+              <Wrench className="h-4 w-4" />
+              Fix
+            </Button>
+            <Link href="/history">
+              <span className="text-sm font-medium transition-colors duration-200 cursor-pointer" style={{ color: '#FFD300' }}>
+                View All
+              </span>
+            </Link>
+          </div>
         </div>
         
         {recentWorkouts.length === 0 ? (
@@ -84,15 +193,21 @@ export default function RecentWorkouts() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-slate-900 dark:text-white">
-                    {workout.duration && workout.duration > 0
-                      ? (() => {
-                          // Duration is now stored in seconds, not minutes
-                          const totalSeconds = workout.duration;
-                          const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
-                          const s = (totalSeconds % 60).toString().padStart(2, "0");
-                          return `${m}:${s}`;
-                        })()
-                      : "No duration"}
+                    {(() => {
+                      if (workout.duration && workout.duration > 0) {
+                        // Duration is stored in minutes in the database
+                        const totalMinutes = workout.duration;
+                        const h = Math.floor(totalMinutes / 60);
+                        const m = totalMinutes % 60;
+                        if (h > 0) {
+                          return `${h}h ${m}m`;
+                        } else {
+                          return `${m}m`;
+                        }
+                      } else {
+                        return "No duration";
+                      }
+                    })()}
                   </p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
                     Exercise: {workout.exercises && workout.exercises.length > 0 ? 

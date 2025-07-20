@@ -21,6 +21,7 @@ import Navbar from "@/components/layout/navbar";
 import Sidebar from "@/components/layout/sidebar";
 import MobileNav from "@/components/layout/mobile-nav";
 import CommunityDashboard from "@/pages/community";
+import DebugWorkouts from "@/pages/debug-workouts";
 import { useState } from "react";
 
 function Router() {
@@ -43,6 +44,7 @@ function Router() {
           <Route path="/settings" component={Settings} />
           <Route path="/community" component={CommunityDashboard} />
           {import.meta.env.DEV && <Route path="/admin" component={Admin} />}
+          {import.meta.env.DEV && <Route path="/debug/workouts" component={DebugWorkouts} />}
         </>
       )}
       <Route component={NotFound} />
