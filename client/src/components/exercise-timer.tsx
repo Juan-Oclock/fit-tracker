@@ -7,7 +7,6 @@ interface ExerciseTimerProps {
   disabled?: boolean; // Disable timer when another exercise is running
   onStart?: () => void; // Callback when timer starts
   onStop?: () => void; // Callback when timer stops
-  onComplete?: () => void; // Callback when exercise is completed (Exercise Done button)
   exerciseId?: number; // To identify which exercise this timer belongs to
 }
 
@@ -16,7 +15,7 @@ export interface ExerciseTimerRef {
   isRunning: () => boolean;
 }
 
-export const ExerciseTimer = forwardRef<ExerciseTimerRef, ExerciseTimerProps>(({ value, onChange, disabled = false, onStart, onStop, onComplete, exerciseId }, ref) => {
+export const ExerciseTimer = forwardRef<ExerciseTimerRef, ExerciseTimerProps>(({ value, onChange, disabled = false, onStart, onStop, exerciseId }, ref) => {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(value);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -80,15 +79,7 @@ export const ExerciseTimer = forwardRef<ExerciseTimerRef, ExerciseTimerProps>(({
     }
   };
 
-  // Complete the exercise (Exercise Done button)
-  const handleComplete = () => {
-    setRunning(false);
-    onComplete?.(); // Notify parent that this exercise is completed
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
+
 
   // Start the timer
   const handleStart = () => {
@@ -164,23 +155,13 @@ export const ExerciseTimer = forwardRef<ExerciseTimerRef, ExerciseTimerProps>(({
     <div className="flex items-center gap-2 mt-2">
       <span className={`font-mono text-base ${disabled ? 'text-gray-400' : ''}`}>{format(elapsed)}</span>
       {running ? (
-        <>
-          <button
-            type="button"
-            className="px-2 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600"
-            onClick={handleStop}
-          >
-            Stop
-          </button>
-          <button
-            type="button"
-            className="px-2 py-1 rounded bg-blue-500 text-white text-xs hover:bg-blue-600"
-            onClick={handleComplete}
-            title="Complete this exercise and enable adding more exercises"
-          >
-            Exercise Done
-          </button>
-        </>
+        <button
+          type="button"
+          className="px-2 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600"
+          onClick={handleStop}
+        >
+          Stop
+        </button>
       ) : (
         <button
           type="button"
