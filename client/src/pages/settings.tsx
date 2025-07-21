@@ -10,10 +10,12 @@ import { useEffect, useState, useRef } from "react";
 import { getShowInCommunity, setShowInCommunity } from "@/lib/community";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { useWorkoutPreferences } from "@/hooks/use-workout-preferences";
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
+  const { preferences, setDefaultRestTime } = useWorkoutPreferences();
   const [showInCommunity, setShowInCommunityState] = useState(false);
   const [loadingCommunity, setLoadingCommunity] = useState(false);
   const [username, setUsername] = useState("");
@@ -100,7 +102,7 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
   if (uploadError) {
     console.error("Supabase upload error:", uploadError);
     setSavingProfile(false);
-    alert(`Upload failed: ${uploadError.message || uploadError.error_description || "Unknown error"}`);
+    alert(`Upload failed: ${uploadError.message || "Unknown error"}`);
     return;
   }
   const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
@@ -220,7 +222,10 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
                 <Label>Default Rest Timer</Label>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Default rest time between sets</p>
               </div>
-              <Select defaultValue="120">
+              <Select 
+                value={preferences.defaultRestTime.toString()} 
+                onValueChange={(value) => setDefaultRestTime(parseInt(value))}
+              >
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -233,6 +238,7 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
               </Select>
             </div>
 
+            {/* Temporarily hidden - will be implemented later
             <div className="flex items-center justify-between">
               <div>
                 <Label>Auto-start rest timer</Label>
@@ -240,7 +246,6 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
               </div>
               <Switch />
             </div>
-
             <div className="flex items-center justify-between">
               <div>
                 <Label>Show weight suggestions</Label>
@@ -248,6 +253,7 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
               </div>
               <Switch defaultChecked />
             </div>
+            */}
           </CardContent>
         </Card>
 

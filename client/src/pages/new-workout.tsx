@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 import { useWorkoutSession } from "@/hooks/use-workout-session";
 import { useNavigationGuardContext } from "@/contexts/navigation-guard-context";
+import { useWorkoutPreferences } from "@/hooks/use-workout-preferences";
 import { WorkoutNavigationGuard } from "@/components/workout-navigation-guard";
 
 type CompletedExercise = {
@@ -51,6 +52,7 @@ export default function NewWorkout() {
   const { user } = useAuth();
   const { data: exercises = [] } = useExercises();
   const { hasActiveSession, saveSession, clearSession } = useWorkoutSession();
+  const { preferences } = useWorkoutPreferences();
 
 
   // State for the new UI structure
@@ -68,7 +70,7 @@ export default function NewWorkout() {
   
   // Timer states
   const [activeExerciseTimer, setActiveExerciseTimer] = useState<boolean>(false);
-  const [restTimeLeft, setRestTimeLeft] = useState(90);
+  const [restTimeLeft, setRestTimeLeft] = useState(preferences.defaultRestTime);
   const [restTimerRunning, setRestTimerRunning] = useState(false);
   const exerciseTimerRef = useRef<ExerciseTimerRef | null>(null);
   const restTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -125,6 +127,13 @@ export default function NewWorkout() {
     };
   }, [setShouldBlock]);
 
+  // Update rest timer when preferences change
+  React.useEffect(() => {
+    if (!restTimerRunning) {
+      setRestTimeLeft(preferences.defaultRestTime);
+    }
+  }, [preferences.defaultRestTime, restTimerRunning]);
+
   // Save workout session when user starts working on workout
   useEffect(() => {
     const workoutName = form.watch("name");
@@ -145,7 +154,7 @@ export default function NewWorkout() {
           durationSeconds: ex.durationSeconds,
         })),
         activeExerciseTimer: null,
-        restTimeLeft: 90,
+        restTimeLeft: preferences.defaultRestTime,
         restTimerRunning: false,
         activeRestExercise: null,
       });
@@ -172,7 +181,7 @@ export default function NewWorkout() {
             durationSeconds: ex.durationSeconds,
           })),
           activeExerciseTimer: null,
-          restTimeLeft: 90,
+          restTimeLeft: preferences.defaultRestTime,
           restTimerRunning: false,
           activeRestExercise: null,
         });
@@ -201,7 +210,7 @@ export default function NewWorkout() {
           durationSeconds: ex.durationSeconds,
         })),
         activeExerciseTimer: null,
-        restTimeLeft: 90,
+        restTimeLeft: preferences.defaultRestTime,
         restTimerRunning: false,
         activeRestExercise: null,
       });
@@ -297,7 +306,7 @@ export default function NewWorkout() {
     }
 
     setRestTimerRunning(true);
-    setRestTimeLeft(90);
+    setRestTimeLeft(preferences.defaultRestTime);
 
     const countdown = () => {
       setRestTimeLeft(prev => {
