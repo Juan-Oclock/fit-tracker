@@ -98,7 +98,7 @@ export default function StatsCards() {
                   Exercise: {stats.personalRecords.exerciseName || 'Unknown'}
                 </p>
                 <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Weight: {stats.personalRecords.weight || 0} lbs
+                  Weight: {stats.personalRecords.weight || 0} kg
                 </p>
                 <p className="text-sm font-semibold text-slate-900 dark:text-white">
                   Category: {stats.personalRecords.category ? 

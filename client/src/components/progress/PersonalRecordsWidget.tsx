@@ -1,10 +1,20 @@
 import { useWorkoutsWithExercises } from '@/hooks/use-workouts';
+import { type WorkoutWithExercises } from '@shared/schema';
 
-function getBestRecords(workouts) {
+interface PersonalRecord {
+  bestWeight: number;
+  bestWeightReps: number;
+  bestWeightDate: Date;
+  bestReps: number;
+  bestRepsWeight: number;
+  bestRepsDate: Date;
+}
+
+function getBestRecords(workouts: WorkoutWithExercises[] | undefined): Record<string, PersonalRecord> {
   // Map: exerciseName => { bestWeight, bestWeightReps, bestWeightDate, bestReps, bestRepsWeight, bestRepsDate }
-  const records = {};
-  workouts?.forEach(w => {
-    w.exercises.forEach(e => {
+  const records: Record<string, PersonalRecord> = {};
+  workouts?.forEach((w) => {
+    w.exercises.forEach((e) => {
       const name = e.exercise?.name || 'Unknown';
       const weight = Number(e.weight);
       const reps = Number(e.reps);
@@ -55,11 +65,11 @@ export default function PersonalRecordsWidget() {
             <thead>
               <tr className="text-slate-300">
                 <th className="px-2 py-1 text-left">Exercise</th>
-                <th className="px-2 py-1 text-left">Best Weight</th>
+                <th className="px-2 py-1 text-left">Best Weight (kg)</th>
                 <th className="px-2 py-1 text-left">Reps (at best weight)</th>
                 <th className="px-2 py-1 text-left">Date</th>
                 <th className="px-2 py-1 text-left">Best Reps</th>
-                <th className="px-2 py-1 text-left">Weight (at best reps)</th>
+                <th className="px-2 py-1 text-left">Weight (kg)</th>
                 <th className="px-2 py-1 text-left">Date</th>
               </tr>
             </thead>

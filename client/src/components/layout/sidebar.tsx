@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useActiveWorkoutTimers } from "@/hooks/use-active-workout-timers";
+import { useWorkoutSession } from "@/hooks/use-workout-session";
+import { useNavigationGuardContext } from "@/contexts/navigation-guard-context";
 
 // Base navigation items
 const baseNavItems = [
@@ -37,12 +38,19 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = true, onItemClick }: SidebarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
-  const { activeTimers, restTimers } = useActiveWorkoutTimers();
+  const { hasActiveSession } = useWorkoutSession();
+  const { guardedNavigate } = useNavigationGuardContext();
   const googleAvatar = user?.user_metadata?.avatar_url;
   const profileImageUrl = user?.profile_image_url;
   
-  // Check if there are any active timers
-  const hasActiveTimers = activeTimers.length > 0 || restTimers.length > 0;
+  // Check if there is an active workout session
+  const hasActiveWorkout = hasActiveSession;
+
+  const handleNavigation = (href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onItemClick) onItemClick();
+    guardedNavigate(href);
+  };
 
   return (
     <>
@@ -84,7 +92,7 @@ export default function Sidebar({ isOpen = true, onItemClick }: SidebarProps) {
                 const isActive = location === item.href;
                 const Icon = item.icon;
                 const isNewWorkout = item.href === "/new-workout";
-                const isDisabled = isNewWorkout && hasActiveTimers;
+                const isDisabled = isNewWorkout && hasActiveWorkout;
                 
                 if (isDisabled) {
                   return (
@@ -103,37 +111,37 @@ export default function Sidebar({ isOpen = true, onItemClick }: SidebarProps) {
                 }
                 
                 return (
-                  <Link key={item.href} href={item.href}>
-                    <div 
-                      onClick={onItemClick}
-                      className={cn(
-                        "flex items-center space-x-3 px-3 py-3 lg:py-2 rounded-lg font-medium transition-colors duration-200 cursor-pointer",
-                        isActive 
-                          ? "border" 
-                          : "text-white"
-                      )}
-                      style={{
-                        backgroundColor: isActive ? '#FFD300' : 'transparent',
-                        borderColor: isActive ? '#FFD300' : 'transparent',
-                        color: isActive ? '#090C11' : undefined
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.backgroundColor = '#111418';
-                          e.currentTarget.style.color = '#FFD300';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                          e.currentTarget.style.color = 'white';
-                        }
-                      }}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span>{item.label}</span>
-                    </div>
-                  </Link>
+                  <a 
+                    key={item.href} 
+                    href={item.href}
+                    onClick={(e) => handleNavigation(item.href, e)}
+                    className={cn(
+                      "flex items-center space-x-3 px-3 py-3 lg:py-2 rounded-lg font-medium transition-colors duration-200 cursor-pointer",
+                      isActive 
+                        ? "border" 
+                        : "text-white"
+                    )}
+                    style={{
+                      backgroundColor: isActive ? '#FFD300' : 'transparent',
+                      borderColor: isActive ? '#FFD300' : 'transparent',
+                      color: isActive ? '#090C11' : undefined
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = '#111418';
+                        e.currentTarget.style.color = '#FFD300';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'white';
+                      }
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                  </a>
                 );
               })}
             </nav>

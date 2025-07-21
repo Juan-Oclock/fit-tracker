@@ -16,8 +16,6 @@ export interface WorkoutSessionData {
   restTimeLeft: number;
   restTimerRunning: boolean;
   activeRestExercise: number | null;
-  activeTimerIds: Record<number, string>;
-  activeRestTimerIds: Record<number, string>;
 }
 
 const WORKOUT_SESSION_KEY = 'fit-tracker-workout-session';
@@ -47,7 +45,11 @@ export const loadWorkoutSession = (): WorkoutSessionData | null => {
 // Clear workout session from localStorage
 export const clearWorkoutSession = () => {
   try {
+    console.log('🧹 clearWorkoutSession: Clearing workout session from localStorage');
     localStorage.removeItem(WORKOUT_SESSION_KEY);
+    // Dispatch custom event to notify all useWorkoutSession hooks immediately
+    console.log('📡 clearWorkoutSession: Dispatching workoutSessionCleared event');
+    window.dispatchEvent(new CustomEvent('workoutSessionCleared'));
   } catch (error) {
     console.error('Error clearing workout session:', error);
   }
@@ -64,6 +66,27 @@ export const useWorkoutSession = () => {
 
   useEffect(() => {
     setHasActiveSession(hasActiveWorkoutSession());
+    
+    // Listen for storage changes to detect when session is cleared from other parts of the app
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === WORKOUT_SESSION_KEY) {
+        setHasActiveSession(hasActiveWorkoutSession());
+      }
+    };
+    
+    // Listen for custom events when session is cleared programmatically
+    const handleSessionClear = () => {
+      console.log('🧹 useWorkoutSession: Received workoutSessionCleared event');
+      setHasActiveSession(false);
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('workoutSessionCleared', handleSessionClear);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('workoutSessionCleared', handleSessionClear);
+    };
   }, []);
 
   const saveSession = useCallback((sessionData: WorkoutSessionData) => {

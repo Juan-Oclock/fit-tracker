@@ -1,5 +1,4 @@
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from "react";
-import { useActiveWorkoutTimers } from "../hooks/use-active-workout-timers";
 
 interface ExerciseTimerProps {
   value: number; // seconds
@@ -7,7 +6,6 @@ interface ExerciseTimerProps {
   disabled?: boolean; // Disable timer when another exercise is running
   onStart?: () => void; // Callback when timer starts
   onStop?: () => void; // Callback when timer stops
-  exerciseId?: number; // To identify which exercise this timer belongs to
 }
 
 export interface ExerciseTimerRef {
@@ -15,59 +13,16 @@ export interface ExerciseTimerRef {
   isRunning: () => boolean;
 }
 
-export const ExerciseTimer = forwardRef<ExerciseTimerRef, ExerciseTimerProps>(({ value, onChange, disabled = false, onStart, onStop, exerciseId }, ref) => {
+export const ExerciseTimer = forwardRef<ExerciseTimerRef, ExerciseTimerProps>(({ value, onChange, disabled = false, onStart, onStop }, ref) => {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(value);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const elapsedRef = useRef(value);
-  
-  // Get global timer state to sync with
-  const { activeTimers } = useActiveWorkoutTimers();
 
   // Keep ref in sync with state
   useEffect(() => {
     elapsedRef.current = elapsed;
   }, [elapsed]);
-  
-  // Sync with global timer state on mount and when global timers change
-  useEffect(() => {
-    if (exerciseId !== undefined && !running) {
-      // Only sync if we're not currently running (to avoid interference)
-      // Find if there's a global timer running for this exercise
-      const globalTimer = activeTimers.find(timer => 
-        timer.exerciseName.includes(`Exercise ${exerciseId + 1}`)
-      );
-      
-      if (globalTimer && globalTimer.isRunning) {
-        // Sync with global timer
-        setRunning(true);
-        setElapsed(globalTimer.elapsed);
-        elapsedRef.current = globalTimer.elapsed;
-        onChange(globalTimer.elapsed);
-        
-        // Start local sync interval
-        if (!intervalRef.current) {
-          intervalRef.current = setInterval(() => {
-            const currentGlobalTimer = activeTimers.find(timer => 
-              timer.exerciseName.includes(`Exercise ${exerciseId + 1}`)
-            );
-            if (currentGlobalTimer && currentGlobalTimer.isRunning) {
-              setElapsed(currentGlobalTimer.elapsed);
-              elapsedRef.current = currentGlobalTimer.elapsed;
-              onChange(currentGlobalTimer.elapsed);
-            } else {
-              // Global timer stopped, stop local display
-              setRunning(false);
-              if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-                intervalRef.current = null;
-              }
-            }
-          }, 1000);
-        }
-      }
-    }
-  }, [activeTimers, exerciseId, onChange, running]);
 
   // Stop the timer
   const handleStop = () => {
@@ -85,32 +40,14 @@ export const ExerciseTimer = forwardRef<ExerciseTimerRef, ExerciseTimerProps>(({
   const handleStart = () => {
     if (running || disabled) return;
     setRunning(true);
-    onStart?.(); // Notify parent that this timer started - this will create the global timer
+    onStart?.(); // Notify parent that this timer started
     
-    // Start local sync interval to display global timer updates
+    // Start local timer
     intervalRef.current = setInterval(() => {
-      if (exerciseId !== undefined) {
-        const globalTimer = activeTimers.find(timer => 
-          timer.exerciseName.includes(`Exercise ${exerciseId + 1}`)
-        );
-        if (globalTimer && globalTimer.isRunning) {
-          setElapsed(globalTimer.elapsed);
-          elapsedRef.current = globalTimer.elapsed;
-          onChange(globalTimer.elapsed);
-        } else {
-          // If global timer doesn't exist or stopped, fall back to local timing
-          const next = elapsedRef.current + 1;
-          elapsedRef.current = next;
-          setElapsed(next);
-          onChange(next);
-        }
-      } else {
-        // Fallback to local timing if no exerciseId
-        const next = elapsedRef.current + 1;
-        elapsedRef.current = next;
-        setElapsed(next);
-        onChange(next);
-      }
+      const next = elapsedRef.current + 1;
+      elapsedRef.current = next;
+      setElapsed(next);
+      onChange(next);
     }, 1000);
   };
 

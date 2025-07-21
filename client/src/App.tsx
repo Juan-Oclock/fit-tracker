@@ -23,6 +23,7 @@ import MobileNav from "@/components/layout/mobile-nav";
 import CommunityDashboard from "@/pages/community";
 import DebugWorkouts from "@/pages/debug-workouts";
 import { useState } from "react";
+import { NavigationGuardProvider } from "@/contexts/navigation-guard-context";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -67,14 +68,16 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <AuthenticatedLayout
-            isMobileMenuOpen={isMobileMenuOpen}
-            onMenuToggle={toggleMobileMenu}
-            onItemClick={closeMobileMenu}
-          >
-            <Router />
-          </AuthenticatedLayout>
-          <Toaster />
+          <NavigationGuardProvider>
+            <AuthenticatedLayout
+              isMobileMenuOpen={isMobileMenuOpen}
+              onMenuToggle={toggleMobileMenu}
+              onItemClick={closeMobileMenu}
+            >
+              <Router />
+            </AuthenticatedLayout>
+            <Toaster />
+          </NavigationGuardProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
