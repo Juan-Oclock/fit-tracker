@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { MonthlyCalendar } from "./monthly-calendar";
 import { GoalProgressBar } from "./goal-progress-bar";
 import { MonthlyGoalSettingDialog } from "@/components/monthly-goal-setting-dialog";
-import { ChevronLeft, ChevronRight, Calendar, Camera, Target, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Camera, Target, Trash2, Play } from "lucide-react";
 import { format } from "date-fns";
 import { useMonthlyGoalData } from "@/hooks/use-monthly-goals";
 import { useWorkouts } from "@/hooks/use-workouts";
 import { ImageUpload } from "@/components/image-upload";
+import { Link } from "wouter";
 import { useCreateGoalPhoto, useDeleteGoalPhoto } from "@/hooks/use-goal-photos";
 import { useToast } from "@/hooks/use-toast";
 
@@ -210,6 +211,27 @@ export function GoalCard({ className }: GoalCardProps) {
         />
       </div>
       
+      {/* Start Workout Button - Only show when goal is set */}
+      {hasExplicitGoal && targetWorkouts > 0 && (
+        <div className="mb-4">
+          <Link href="/new-workout">
+            <div className="bg-[#FFD300] text-black rounded-xl p-3 text-center hover:bg-[#E6BE00] transition-colors active:scale-95 transform duration-150">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-[#090C11] rounded-xl flex items-center justify-center">
+                    <Play className="w-6 h-6 text-[#FFD300]" fill="currentColor" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-[#090C11] text-lg">Start Workout</p>
+                    <p className="text-[#090C11]/70 text-sm">Begin your training session</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </div>
+      )}
+      
       <div className="border border-slate-800 rounded-2xl p-4 space-y-4">
         {/* Month Navigation */}
         <div className="flex items-center justify-between">
@@ -246,15 +268,6 @@ export function GoalCard({ className }: GoalCardProps) {
             target={targetWorkouts}
             month={format(new Date(selectedYear, selectedMonth - 1), 'MMMM')}
           />
-          
-          <div className="text-center">
-            <p className="text-white font-semibold">
-              {completedWorkouts} / {targetWorkouts} workouts
-            </p>
-            <p className="text-slate-400 text-sm">
-              {Math.round((completedWorkouts / targetWorkouts) * 100)}% complete this month
-            </p>
-          </div>
         </div>
         
         {/* Calendar */}

@@ -75,23 +75,13 @@ export function GoalProgressBar({ current, target, month, animated = true, class
     <div className={cn("space-y-3", className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className={cn("p-1 rounded", {
-            "bg-purple-100 text-purple-600": progressData.status === 'exceeded',
-            "bg-green-100 text-green-600": progressData.status === 'success',
-            "bg-yellow-100 text-yellow-600": progressData.status === 'warning',
-            "bg-red-100 text-red-600": progressData.status === 'danger',
-          })}>
-            {getStatusIcon()}
-          </div>
-          <div>
-            <h4 className="font-semibold text-slate-900 dark:text-white">
-              {month} Goal Progress
-            </h4>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              {current} / {target} workouts
-            </p>
-          </div>
+        <div>
+          <h4 className="font-semibold text-slate-900 dark:text-white">
+            {month} Goal Progress
+          </h4>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            {current} / {target} workouts
+          </p>
         </div>
         
         <div className="text-right">

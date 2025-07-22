@@ -58,7 +58,7 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="space-y-3">
+      <div className="space-y-3 pb-20">
         <StatsCards />
         
         {/* Active Workout Timer */}

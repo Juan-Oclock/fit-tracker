@@ -60,27 +60,27 @@ export function MonthlyCalendar({ month, year, workoutDates, className }: Monthl
       
       {/* Day labels */}
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
-        <div>Sun</div>
-        <div>Mon</div>
-        <div>Tue</div>
-        <div>Wed</div>
-        <div>Thu</div>
-        <div>Fri</div>
-        <div>Sat</div>
+        <div className="flex justify-center">Sun</div>
+        <div className="flex justify-center">Mon</div>
+        <div className="flex justify-center">Tue</div>
+        <div className="flex justify-center">Wed</div>
+        <div className="flex justify-center">Thu</div>
+        <div className="flex justify-center">Fri</div>
+        <div className="flex justify-center">Sat</div>
       </div>
       
       {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-1">
         {calendarData.days.map((dayData, index) => {
           if (dayData.isEmpty) {
-            return <div key={index} className="h-8 w-8" />;
+            return <div key={index} className="h-6 w-6 mx-auto" />;
           }
           
           return (
             <div
               key={index}
               className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-200 hover:scale-110",
+                "h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-200 hover:scale-110 mx-auto",
                 {
                   // No workout - gray dot
                   "bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400": !dayData.hasWorkout,
