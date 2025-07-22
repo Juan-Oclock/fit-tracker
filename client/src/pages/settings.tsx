@@ -1,10 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// Card components removed in favor of custom styled divs
 import { useTheme } from "@/hooks/use-theme";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings as SettingsIcon, Palette, Database, Bell, Download, AlertTriangle } from "lucide-react";
+import { Settings as SettingsIcon, Palette, Database, Bell, Download, AlertTriangle, User, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 import { useEffect, useState, useRef } from "react";
@@ -22,7 +22,6 @@ export default function Settings() {
   const { 
     preferences: notificationPrefs, 
     setWorkoutReminders, 
-    setRestTimerAlerts, 
     setPersonalRecordAlerts 
   } = useNotificationPreferences();
   const [showInCommunity, setShowInCommunityState] = useState(false);
@@ -112,47 +111,33 @@ export default function Settings() {
     setExportingData(true);
     try {
       // Make authenticated request to export endpoint
-      const response = await fetch('/api/export/data', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Export failed: ${response.statusText}`);
-      }
-
-      // Get the CSV content
-      const csvContent = await response.text();
+      const response = await apiRequest('GET', '/api/export/data', {});
       
-      // Create download link
-      const blob = new Blob([csvContent], { type: 'text/csv' });
+      // Create a blob from the response data
+      const blob = new Blob([JSON.stringify(response)], { type: 'text/csv' });
+      
+      // Create a download link and trigger download
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `fit-tracker-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
       
-      // Generate filename with current date
-      const timestamp = new Date().toISOString().split('T')[0];
-      link.download = `fit-tracker-export-${timestamp}.csv`;
-      
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Clean up
       window.URL.revokeObjectURL(url);
-
+      document.body.removeChild(a);
+      
       toast({
-        title: "Export Successful",
-        description: "Your workout data has been downloaded as a CSV file",
-        variant: "default"
+        title: "Export Complete",
+        description: "Your data has been exported successfully.",
       });
     } catch (error) {
-      console.error('Export error:', error);
+      console.error("Export error:", error);
       toast({
         title: "Export Failed",
-        description: error instanceof Error ? error.message : "Failed to export data",
+        description: "There was an error exporting your data. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -172,123 +157,127 @@ export default function Settings() {
       
       console.log('[Clear Data] API response:', response);
       
+      // Show success message
       toast({
-        title: "Data Cleared Successfully",
-        description: "All your workout data has been permanently deleted. You will now be logged out.",
-        variant: "default"
+        title: "Data Cleared",
+        description: "All your workout data has been deleted. You will be logged out shortly.",
       });
-
-      // Wait a moment for the toast to show, then logout
-      setTimeout(async () => {
-        try {
-          await supabase.auth.signOut();
-          // Force page reload to clear any cached data and go to landing page
-          window.location.href = '/';
-        } catch (logoutError) {
-          console.error('[Clear Data] Logout error:', logoutError);
-          // Force reload anyway
-          window.location.href = '/';
-        }
-      }, 2000);
       
+      // Wait a moment before logging out
+      setTimeout(() => {
+        // Log the user out
+        supabase.auth.signOut().then(() => {
+          console.log('[Clear Data] User logged out after data deletion');
+          // Redirect to login page
+          window.location.href = '/login';
+        });
+      }, 3000);
     } catch (error) {
       console.error('[Clear Data] Error:', error);
       toast({
-        title: "Clear Data Failed",
-        description: error instanceof Error ? error.message : "Failed to clear data",
+        title: "Error",
+        description: "Failed to clear data. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setClearingData(false);
       setShowClearConfirm(false);
     }
   };
 
   // Handles avatar image selection and upload to Supabase Storage
-async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-  if (!user?.id || !e.target.files || e.target.files.length === 0) return;
-  const file = e.target.files[0];
-  const fileExt = file.name.split('.').pop();
-  const filePath = `${user.id}.${fileExt}`; // Save as <user.id>.<ext> in avatars bucket
-
-  // Debug logging
-  console.log("Uploading file:", file, file instanceof File, file.type, file.size);
-
-  setSavingProfile(true);
-  setProfileImageUrl(null);
-  const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-  if (uploadError) {
-    console.error("Supabase upload error:", uploadError);
-    setSavingProfile(false);
-    alert(`Upload failed: ${uploadError.message || "Unknown error"}`);
-    return;
-  }
-  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-  setProfileImageUrl(data.publicUrl);
-  // Immediately update user's profile_image_url in DB
-  await supabase.from('users').update({ profile_image_url: data.publicUrl }).eq('id', user.id);
-  setSavingProfile(false);
-}
+  const handleProfileImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files.length || !user?.id) return;
+    
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `profile-images/${fileName}`;
+    
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('user-content')
+      .upload(filePath, file);
+    
+    if (uploadError) {
+      alert('Error uploading image: ' + uploadError.message);
+      return;
+    }
+    
+    // Get the public URL
+    const { data } = supabase.storage
+      .from('user-content')
+      .getPublicUrl(filePath);
+    
+    // Update state with the new URL
+    setProfileImageUrl(data.publicUrl);
+  };
 
 
   return (
-    <div className="flex justify-between items-start">
+    <div className="settings-page px-4 md:px-6 pb-20">
+      <style>{`
+        .settings-page input::placeholder,
+        .settings-page textarea::placeholder {
+          color: #666666 !important;
+          font-size: 0.75rem !important;
+          opacity: 0.8 !important;
+        }
+      `}</style>
+    <div className="flex flex-col md:flex-row justify-between items-start gap-6">
       {/* Main Profile Section */}
-      <div>
-        <div className="mb-8 flex items-center gap-6">
-        <div className="relative w-20 h-20">
-          {profileImageUrl ? (
-            <img src={profileImageUrl} alt="Profile" className="rounded-full w-20 h-20 object-cover border-2 border-slate-400" />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-slate-700 flex items-center justify-center text-2xl text-white">👤</div>
-          )}
-          <button
-            className="absolute bottom-0 right-0 bg-slate-800 rounded-full p-1 border border-white"
-            onClick={() => fileInputRef.current?.click()}
-            title="Change avatar"
-          >
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19.5l-4 1 1-4L16.5 3.5Z"/></svg>
-          </button>
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleProfileImageChange}
-          />
+      <div className="w-full">
+        {/* Greeting Section - Moved from bottom to top */}
+        {username && (
+          <div className="mb-8 p-6 border border-slate-800 shadow text-white text-xl font-semibold w-full flex flex-col items-center" style={{borderRadius: 'var(--radius)', backgroundColor: '#10141c'}}>
+            <span role="img" aria-label="wave" className="text-3xl mb-2">👋</span>
+            Hello, {username}!
+          </div>
+        )}
+        
+        {/* Username Edit Form */}
+        <div className="mb-8 border border-slate-800 p-4" style={{borderRadius: 'var(--radius)', backgroundColor: '#10141c'}}>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <User className="w-5 h-5" style={{color: '#FFD300'}} />
+              <span>Profile</span>
+            </h3>
+          </div>
+          <form onSubmit={handleProfileSave} className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="w-full">
+              <Label className="text-white font-medium">Username</Label>
+              <input
+                className="w-full mt-1 border px-3 py-2 bg-[#090C11] text-white border-slate-700 focus:outline-none focus:ring-1 focus:ring-[#FFD300] focus:border-[#FFD300]"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                maxLength={32}
+                style={{borderRadius: 'var(--radius)'}}
+              />
+            </div>
+            <Button
+              type="submit"
+              className="mt-2 sm:mt-6 px-4 py-2 bg-[#FFD300] text-black font-bold hover:bg-[#FFE14D] disabled:opacity-60 transition-colors"
+              style={{borderRadius: 'var(--radius)'}}
+              disabled={savingProfile || !username.trim()}
+            >
+              {savingProfile ? "Saving..." : "Save Username"}
+            </Button>
+          </form>
         </div>
-        <form onSubmit={handleProfileSave} className="flex flex-col gap-2 flex-1 max-w-xs">
-          <label className="font-medium text-slate-900 dark:text-white">Username</label>
-          <input
-            className="rounded border px-3 py-2 bg-slate-900 text-white border-slate-700 focus:outline-none focus:ring focus:border-blue-500"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            placeholder="Enter your username"
-            maxLength={32}
-          />
-          <button
-            type="submit"
-            className="mt-2 px-4 py-2 rounded bg-blue-700 text-white font-bold hover:bg-blue-800 disabled:opacity-60"
-            disabled={savingProfile || !username.trim()}
-          >
-            {savingProfile ? "Saving..." : "Save Profile"}
-          </button>
-        </form>
-      </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 w-full max-w-2xl mx-auto md:mx-0">
         {/* Community Sharing */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <span role="img" aria-label="community">🌐</span>
+        <div className="border border-slate-800 p-4" style={{borderRadius: 'var(--radius)', backgroundColor: '#10141c'}}>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Globe className="w-5 h-5" style={{color: '#FFD300'}} />
               <span>Community Sharing</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
+            </h3>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <Label>Share my activity on Community Dashboard</Label>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <Label className="text-white font-medium">Share my activity on Community Dashboard</Label>
+              <p className="text-sm text-slate-400">
                 Opt-in to show your workout activity to other users in real time.
               </p>
             </div>
@@ -297,24 +286,24 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
               onCheckedChange={handleCommunityToggle}
               disabled={loadingCommunity}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
         {/* Appearance Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Palette className="w-5 h-5" />
+        <div className="border border-slate-800 p-4" style={{borderRadius: 'var(--radius)', backgroundColor: '#10141c'}}>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Palette className="w-5 h-5" style={{color: '#FFD300'}} />
               <span>Appearance</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            </h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <Label>Theme</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Choose your preferred theme</p>
+                <Label className="text-white font-medium">Theme</Label>
+                <p className="text-sm text-slate-400">Choose your preferred theme</p>
               </div>
               <Select value={theme} onValueChange={(value: "light" | "dark") => setTheme(value)}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-32 border-slate-700" style={{borderRadius: 'var(--radius)'}}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -323,83 +312,80 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
                 </SelectContent>
               </Select>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Workout Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <SettingsIcon className="w-5 h-5" />
+        <div className="border border-slate-800 p-4" style={{borderRadius: 'var(--radius)', backgroundColor: '#10141c'}}>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <SettingsIcon className="w-5 h-5" style={{color: '#FFD300'}} />
               <span>Workout Preferences</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            </h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <Label>Default Rest Timer</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Default rest time between sets</p>
+                <Label className="text-white font-medium">Default Rest Timer</Label>
+                <p className="text-sm text-slate-400">Default rest time between sets</p>
               </div>
               <Select 
                 value={preferences.defaultRestTime.toString()} 
                 onValueChange={(value) => setDefaultRestTime(parseInt(value))}
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-32 border-slate-700" style={{borderRadius: 'var(--radius)'}}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="60">1 minute</SelectItem>
-                  <SelectItem value="90">1.5 minutes</SelectItem>
-                  <SelectItem value="120">2 minutes</SelectItem>
-                  <SelectItem value="180">3 minutes</SelectItem>
+                  <SelectItem value="30">30 sec</SelectItem>
+                  <SelectItem value="45">45 sec</SelectItem>
+                  <SelectItem value="60">60 sec</SelectItem>
+                  <SelectItem value="90">90 sec</SelectItem>
+                  <SelectItem value="120">2 min</SelectItem>
+                  <SelectItem value="180">3 min</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Temporarily hidden - will be implemented later
-            <div className="flex items-center justify-between">
+            {/* Uncomment when implementing this feature
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label>Auto-start rest timer</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Start timer automatically after completing a set</p>
-              </div>
-              <Switch />
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Show weight suggestions</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Suggest weights based on previous workouts</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Automatically start rest timer after completing a set
+                </p>
               </div>
               <Switch defaultChecked />
             </div>
             */}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Notifications */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Bell className="w-5 h-5" />
+        <div className="border border-slate-800 p-4" style={{borderRadius: 'var(--radius)', backgroundColor: '#10141c'}}>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Bell className="w-5 h-5" style={{color: '#FFD300'}} />
               <span>Notifications</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            </h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <Label>Workout reminders</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Get reminded to work out</p>
+                <Label className="text-white font-medium">Workout reminders</Label>
+                <p className="text-sm text-slate-400">Get reminded to work out</p>
               </div>
               <Switch 
                 checked={notificationPrefs.workoutReminders}
                 onCheckedChange={setWorkoutReminders}
               />
             </div>
-
-            {/* Rest timer alerts - temporarily hidden
-            <div className="flex items-center justify-between">
+            {/* Uncomment when implementing this feature
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <Label>Rest timer alerts</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Get notified when rest time is over</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Get notified when rest timer completes
+                </p>
               </div>
               <Switch 
                 checked={notificationPrefs.restTimerAlerts}
@@ -408,55 +394,58 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
             </div>
             */}
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <Label>Personal record alerts</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Celebrate when you hit a new PR</p>
+                <Label className="text-white font-medium">Personal record alerts</Label>
+                <p className="text-sm text-slate-400">Celebrate when you hit a new PR</p>
               </div>
               <Switch 
                 checked={notificationPrefs.personalRecordAlerts}
                 onCheckedChange={setPersonalRecordAlerts}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Data Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Database className="w-5 h-5" />
+        <div className="border border-slate-800 p-4 pb-6 mb-20" style={{borderRadius: 'var(--radius)', backgroundColor: '#10141c'}}>
+          <div className="mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Database className="w-5 h-5" style={{color: '#FFD300'}} />
               <span>Data Management</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+            </h3>
+          </div>
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <Label>Export Data</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Download your workout data</p>
+                <Label className="text-white font-medium">Export Data</Label>
+                <p className="text-sm text-slate-400">Download your workout data</p>
               </div>
               <Button 
                 variant="outline" 
                 onClick={handleExportData}
                 disabled={exportingData}
-                className="flex items-center space-x-2"
+                className="border-slate-700 hover:border-slate-600 transition-colors flex items-center space-x-2" 
+                style={{borderRadius: 'var(--radius)'}}
               >
                 <Download className="w-4 h-4" />
                 <span>{exportingData ? "Exporting..." : "Export CSV"}</span>
               </Button>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <Label>Clear All Data</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Permanently delete all your workout data</p>
+                <Label className="text-white font-medium">Clear All Data</Label>
+                <p className="text-sm text-slate-400">Permanently delete all your workout data</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
                 {showClearConfirm ? (
                   <>
                     <Button 
                       variant="outline" 
                       size="sm"
+                      className="border-slate-700 hover:border-slate-600 transition-colors"
+                      style={{borderRadius: 'var(--radius)'}}
                       onClick={() => setShowClearConfirm(false)}
                       disabled={clearingData}
                     >
@@ -465,6 +454,7 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
                     <Button 
                       variant="destructive" 
                       size="sm"
+                      style={{borderRadius: 'var(--radius)'}}
                       onClick={handleClearData}
                       disabled={clearingData}
                     >
@@ -475,6 +465,7 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
                 ) : (
                   <Button 
                     variant="destructive"
+                    style={{borderRadius: 'var(--radius)'}}
                     onClick={() => setShowClearConfirm(true)}
                     disabled={clearingData}
                   >
@@ -484,7 +475,7 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
               </div>
             </div>
             {showClearConfirm && (
-              <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+              <div className="mt-3 p-3 bg-red-950/20 border border-red-800" style={{borderRadius: 'var(--radius)'}}>
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-red-800 dark:text-red-200">
@@ -501,18 +492,20 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div> {/* CLOSE .space-y-6 */}
     </div>   {/* CLOSE main profile section */}
-    {/* Greeting Section */}
-    {username && (
-      <div className="ml-8 p-6 bg-slate-800 rounded-xl shadow text-white text-xl font-semibold min-w-[220px] flex flex-col items-center">
-        <span role="img" aria-label="wave" className="text-3xl mb-2">👋</span>
-        Hello, {username}!
-      </div>
-    )}
+    
+    {/* Hidden file input for profile image upload */}
+    <input 
+      type="file" 
+      ref={fileInputRef} 
+      className="hidden" 
+      accept="image/*"
+      onChange={handleProfileImageChange}
+    />
+  </div>
   </div>
 );
 }
-

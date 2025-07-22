@@ -1,14 +1,14 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createWorkoutWithExercisesSchema, type CreateWorkoutWithExercises, type InsertWorkoutExercise } from "@shared/schema";
+import { createWorkoutWithExercisesSchema, type CreateWorkoutWithExercises } from "@shared/schema";
 import { useCreateWorkout } from "@/hooks/use-workouts";
 import { useExercises } from "@/hooks/use-exercises";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+
 import { Textarea } from "@/components/ui/textarea";
 import { useLocation } from "wouter";
 import { Plus, Clock, CheckCircle } from "lucide-react";
@@ -16,7 +16,6 @@ import { ImageUpload } from "@/components/image-upload";
 import { ExerciseSelector } from "@/components/exercise-selector";
 import { ExerciseTimer, type ExerciseTimerRef } from "@/components/exercise-timer";
 import { upsertCommunityPresence } from "@/lib/community";
-import { supabase } from '@/lib/supabase';
 import { useAuth } from "@/hooks/useAuth";
 
 import { useWorkoutSession } from "@/hooks/use-workout-session";
@@ -47,6 +46,24 @@ type CurrentExercise = {
 };
 
 export default function NewWorkout() {
+  // Custom styles for input placeholders
+  React.useEffect(() => {
+    // Add custom styles for placeholders
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .new-workout-page input::placeholder,
+      .new-workout-page textarea::placeholder {
+        color: #666666 !important;
+        font-size: 0.75rem !important;
+        opacity: 0.8 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const createWorkout = useCreateWorkout();
@@ -302,6 +319,16 @@ export default function NewWorkout() {
     }, 500);
   };
 
+  // Remove completed exercise
+  const removeCompletedExercise = (index: number) => {
+    setCompletedExercises(prev => prev.filter((_, i) => i !== index));
+    toast({
+      title: "Exercise Removed",
+      description: "Exercise has been removed from your workout.",
+      duration: 2000,
+    });
+  };
+
   // Rest timer functions (simplified - no global timer integration)
   const startRestTimer = () => {
     if (currentExercise.durationSeconds === 0) {
@@ -553,17 +580,17 @@ export default function NewWorkout() {
   const selectedExercise = exercises.find(ex => ex.id === currentExercise.exerciseId);
 
   return (
-    <>
-      <div className="min-h-screen bg-background">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-        <div className="container mx-auto px-4 py-3 max-w-4xl">
+    <div className="new-workout-page">
+      <div className="min-h-screen" style={{backgroundColor: '#090C11'}}>
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-50 backdrop-blur-xl border-b border-gray-800/50" style={{backgroundColor: '#090C11/95'}}>
+        <div className="container mx-auto px-4 py-4 max-w-4xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <h1 className="text-xl font-semibold">New Workout</h1>
+              <h1 className="text-xl font-bold text-white">New Workout</h1>
               {completedExercises.length > 0 && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <CheckCircle className="w-4 h-4" style={{color: '#FFD300'}} />
                   <span>{completedExercises.length} exercise{completedExercises.length !== 1 ? 's' : ''} completed</span>
                 </div>
               )}
@@ -573,6 +600,7 @@ export default function NewWorkout() {
                 type="button" 
                 variant="outline" 
                 size="sm"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
                 onClick={() => {
                   clearSession();
                   setLocation("/");
@@ -583,6 +611,8 @@ export default function NewWorkout() {
               <Button 
                 type="submit" 
                 size="sm"
+                className="text-black font-semibold hover:opacity-90"
+                style={{backgroundColor: '#FFD300'}}
                 disabled={form.watch("name")?.trim() === "" || completedExercises.length === 0 || createWorkout.isPending}
                 onClick={form.handleSubmit(onSubmit)}
               >
@@ -594,12 +624,11 @@ export default function NewWorkout() {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-6 max-w-4xl">
+      <div className="container mx-auto px-2 py-6 max-w-4xl pb-20">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-6">
-              <Card>
-                <CardContent className="pt-6 space-y-6">
+              <div className="border border-slate-800 rounded-2xl p-4 space-y-5" style={{backgroundColor: '#10141c'}}>
                 <FormField
                   control={form.control}
                   name="name"
@@ -613,6 +642,7 @@ export default function NewWorkout() {
                           {...field}
                           value={field.value ?? ""}
                           disabled={false}
+                          className="border border-slate-700 placeholder:text-slate-300 placeholder:text-sm"
                         />
                       </FormControl>
                       <FormMessage />
@@ -622,59 +652,70 @@ export default function NewWorkout() {
 
                 {/* Completed Exercises Section */}
                 {completedExercises.length > 0 && (
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      Completed Exercises
-                    </h3>
-                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
-                      <div className="space-y-3">
-                        {completedExercises.map((exercise, index) => (
-                          <div key={index} className="flex items-center justify-between py-2 border-b border-green-200 dark:border-green-700 last:border-b-0">
-                            <div className="flex-1">
-                              <div className="font-medium text-green-800 dark:text-green-200">
-                                {index + 1}. {exercise.exerciseName}
-                              </div>
-                              <div className="text-sm text-green-600 dark:text-green-300">
-                                {exercise.sets} sets • {exercise.reps} reps • {exercise.weight}kg
-                              </div>
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-white">Completed Exercises</h3>
+                    <div className="space-y-3">
+                      {completedExercises.map((exercise, index) => (
+                        <div key={index} className="p-4 border border-slate-700 rounded-xl flex items-center justify-between hover:border-slate-600 transition-colors">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CheckCircle className="w-4 h-4" style={{color: '#FFD300'}} />
+                              <h4 className="font-semibold text-white">
+                                {exercise.exerciseName}
+                              </h4>
                             </div>
-                            <div className="text-sm font-mono text-green-700 dark:text-green-300">
-                              {Math.floor(exercise.durationSeconds / 60)}:{(exercise.durationSeconds % 60).toString().padStart(2, '0')}
+                            <div className="flex gap-4 text-sm text-gray-400">
+                              <span>{exercise.sets} sets</span>
+                              <span>{exercise.reps} reps</span>
+                              <span>{exercise.weight} kg</span>
+                              <span className="font-mono">
+                                {Math.floor(exercise.durationSeconds / 60).toString().padStart(2, "0")}:
+                                {(exercise.durationSeconds % 60).toString().padStart(2, "0")}
+                              </span>
                             </div>
                           </div>
-                        ))}
-                      </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCompletedExercise(index)}
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
 
                 {/* Current Exercise Section */}
-                <div className="border-t pt-6">
+                <div className="border-t border-slate-800 pt-6">
                   <div className="flex items-center gap-3 mb-4">
-                    <Plus className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-semibold">
+                    <Plus className="w-5 h-5" style={{color: '#FFD300'}} />
+                    <h3 className="text-lg font-bold text-white">
                       {completedExercises.length > 0 ? "Add Another Exercise" : "Add Exercise"}
                     </h3>
                   </div>
                   {completedExercises.length > 0 && (
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                    <p className="text-sm text-gray-400 mb-4">
                       Great job! You can add more exercises to your workout or save it when you're done.
                     </p>
                   )}
                   
-                  <Card className={`p-4 ${completedExercises.length > 0 ? 'border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/20' : ''}`}>
-                    <CardContent>
-                      <div className="space-y-4">
+                  <div className="py-4">
+                    <div className="space-y-4">
                         {/* Exercise Selector */}
                         <div>
-                          <ExerciseSelector 
-                            exercises={exercises}
-                            selectedExerciseIds={currentExercise.exerciseId ? [currentExercise.exerciseId] : []}
-                            onExerciseSelect={(exerciseId: number) => {
-                              setCurrentExercise(prev => ({ ...prev, exerciseId }));
-                            }}
-                          />
+                          <div className="border border-slate-700 rounded-md overflow-hidden">
+                            <ExerciseSelector 
+                              exercises={exercises}
+                              selectedExerciseIds={currentExercise.exerciseId ? [currentExercise.exerciseId] : []}
+                              onExerciseSelect={(exerciseId: number) => {
+                                setCurrentExercise(prev => ({ ...prev, exerciseId }));
+                              }}
+                            />
+                          </div>
                         </div>
                         
                         {/* Exercise Instructions */}
@@ -719,6 +760,7 @@ export default function NewWorkout() {
                                   sets: isNaN(num) || num < 1 ? 1 : num 
                                 }));
                               }}
+                              className="border border-slate-700 placeholder:text-slate-300 placeholder:text-sm"
                             />
                           </div>
                           <div>
@@ -730,6 +772,7 @@ export default function NewWorkout() {
                               onChange={(e) => {
                                 setCurrentExercise(prev => ({ ...prev, reps: e.target.value }));
                               }}
+                              className="border border-slate-700 placeholder:text-slate-300 placeholder:text-sm"
                             />
                           </div>
                           <div>
@@ -741,14 +784,15 @@ export default function NewWorkout() {
                               onChange={(e) => {
                                 setCurrentExercise(prev => ({ ...prev, weight: e.target.value }));
                               }}
+                              className="border border-slate-700 placeholder:text-slate-300 placeholder:text-sm"
                             />
                           </div>
                         </div>
 
                         {/* Exercise Timer */}
-                        <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border">
+                        <div className="p-4 border border-slate-700 rounded-xl">
                           <div className="flex items-center justify-between mb-2">
-                            <FormLabel className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                            <FormLabel className="text-sm font-semibold text-white">
                               Exercise Timer
                             </FormLabel>
                             <Button
@@ -757,7 +801,7 @@ export default function NewWorkout() {
                               size="sm"
                               disabled={currentExercise.durationSeconds === 0}
                               onClick={startRestTimer}
-                              className="text-xs"
+                              className="text-xs border-slate-600 text-gray-300 hover:border-slate-500 hover:text-white disabled:opacity-50"
                             >
                               <Clock className="w-3 h-3 mr-1" />
                               Start Rest
@@ -829,6 +873,7 @@ export default function NewWorkout() {
                             onChange={(e) => {
                               setCurrentExercise(prev => ({ ...prev, notes: e.target.value }));
                             }}
+                            className="border border-slate-700 placeholder:text-slate-300 placeholder:text-sm"
                           />
                         </div>
 
@@ -837,29 +882,29 @@ export default function NewWorkout() {
                           type="button"
                           onClick={completeCurrentExercise}
                           disabled={currentExercise.exerciseId === 0 || currentExercise.durationSeconds === 0}
-                          className={`w-full ${
+                          className={`w-full font-semibold transition-all ${
                             currentExercise.exerciseId === 0 || currentExercise.durationSeconds === 0
-                              ? "opacity-50 cursor-not-allowed"
-                              : ""
+                              ? "opacity-50 cursor-not-allowed bg-gray-700 text-gray-400"
+                              : "bg-[#FFD300] text-black hover:bg-[#E6BE00] hover:scale-[1.02]"
                           }`}
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Complete Exercise
                         </Button>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Workout Summary */}
                 {completedExercises.length > 0 && (
-                  <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border">
+                  <div className="border border-slate-800 rounded-xl p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-1">
+                        <h4 className="text-sm font-semibold text-white mb-1">
                           Total Workout Duration
                         </h4>
-                        <p className="text-lg font-mono text-blue-600 dark:text-blue-300">
+                        <p className="text-lg font-mono" style={{color: '#FFD300'}}>
                           {(() => {
                             const totalSeconds = completedExercises.reduce((sum, ex) => sum + ex.durationSeconds, 0) + currentExercise.durationSeconds;
                             const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -869,10 +914,10 @@ export default function NewWorkout() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <h4 className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-1">
+                        <h4 className="text-sm font-semibold text-white mb-1">
                           Exercises Completed
                         </h4>
-                        <p className="text-lg font-bold text-green-600 dark:text-green-300">
+                        <p className="text-lg font-bold" style={{color: '#FFD300'}}>
                           {completedExercises.length}
                         </p>
                       </div>
@@ -897,20 +942,19 @@ export default function NewWorkout() {
                           rows={3}
                           {...field}
                           value={field.value ?? ""}
+                          className="border border-slate-700 placeholder:text-slate-300 placeholder:text-sm"
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </CardContent>
-            </Card>
-          </div>
-        </form>
-      </Form>
+              </div>
+            </form>
+          </Form>
         </div>
       </div>
-      
+
       {/* Navigation Guard Modal */}
       <WorkoutNavigationGuard
         isOpen={isBlocking}
@@ -919,6 +963,7 @@ export default function NewWorkout() {
         onSaveAndLeave={handleSaveAndLeave}
         isSaving={isSavingWorkout}
       />
-    </>
+    </div>
   );
 }
+

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from "react";
+import { useState, useRef, useImperativeHandle, forwardRef, useEffect } from "react";
+import { Play, Pause, RotateCcw } from "lucide-react";
 
 interface ExerciseTimerProps {
   value: number; // seconds
@@ -89,39 +90,47 @@ export const ExerciseTimer = forwardRef<ExerciseTimerRef, ExerciseTimerProps>(({
   };
 
   return (
-    <div className="flex items-center gap-2 mt-2">
-      <span className={`font-mono text-base ${disabled ? 'text-gray-400' : ''}`}>{format(elapsed)}</span>
-      {running ? (
+    <div className="flex items-center gap-4 mt-2">
+      <span className={`font-mono text-xl font-bold ${disabled ? 'text-gray-400' : 'text-white'}`}>{format(elapsed)}</span>
+      <div className="flex items-center gap-3">
+        {running ? (
+          <button
+            type="button"
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-[#FFD300] text-black hover:bg-[#FFE14D] transition-colors"
+            onClick={handleStop}
+            title="Stop timer"
+          >
+            <Pause className="w-5 h-5" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+              disabled 
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                : 'bg-[#FFD300] text-black hover:bg-[#FFE14D]'
+            }`}
+            onClick={handleStart}
+            disabled={disabled}
+            title={disabled ? 'Stop the current exercise timer first' : 'Start timer'}
+          >
+            <Play className="w-5 h-5 ml-0.5" />
+          </button>
+        )}
         <button
           type="button"
-          className="px-2 py-1 rounded bg-red-500 text-white text-xs hover:bg-red-600"
-          onClick={handleStop}
-        >
-          Stop
-        </button>
-      ) : (
-        <button
-          type="button"
-          className={`px-2 py-1 rounded text-xs ${
-            disabled 
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-              : 'bg-green-500 text-white hover:bg-green-600'
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+            elapsed === 0 || running
+              ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50'
+              : 'bg-[#FFD300] text-black hover:bg-[#FFE14D]'
           }`}
-          onClick={handleStart}
-          disabled={disabled}
-          title={disabled ? 'Stop the current exercise timer first' : 'Start timer'}
+          onClick={handleReset}
+          disabled={elapsed === 0 || running}
+          title="Reset timer"
         >
-          Start
+          <RotateCcw className="w-5 h-5" />
         </button>
-      )}
-      <button
-        type="button"
-        className="px-2 py-1 rounded bg-gray-300 text-gray-800 text-xs hover:bg-gray-400 disabled:opacity-50"
-        onClick={handleReset}
-        disabled={elapsed === 0 || running}
-      >
-        Reset
-      </button>
+      </div>
     </div>
   );
 });

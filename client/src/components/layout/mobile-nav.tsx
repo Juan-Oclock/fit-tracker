@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { 
   BarChart3, 
   Plus, 
@@ -50,16 +50,20 @@ export default function MobileNav() {
               )}>
                 <div 
                   className={cn(
-                    "p-2 rounded-lg transition-all duration-200 cursor-pointer",
+                    "w-12 h-10 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer",
                     "hover:bg-opacity-80"
                   )}
                   style={{
                     backgroundColor: isActive && !item.isHighlight 
-                      ? '#757B81' // Gray tone for active state
+                      ? '#4a5568' // Dark gray for active state
                       : item.isHighlight 
                       ? '#FFD300' // Bright yellow for Workout button
                       : 'transparent',
-                    color: isActive || item.isHighlight ? '#ffffff' : '#ffffff'
+                    color: isActive && !item.isHighlight
+                      ? '#ffffff' // White icon for active state
+                      : item.isHighlight 
+                      ? '#000000' // Black icon for yellow button
+                      : '#ffffff' // White icon for inactive
                   }}
                   onMouseEnter={(e) => {
                     if (!isActive && !item.isHighlight) {
@@ -82,7 +86,7 @@ export default function MobileNav() {
                   )}
                   style={{
                     color: isActive && !item.isHighlight
-                      ? '#757B81' // Gray tone for active state text
+                      ? '#ffffff' // White text for active state
                       : item.isHighlight 
                       ? '#FFD300' // Bright yellow for Workout button text
                       : '#ffffff'

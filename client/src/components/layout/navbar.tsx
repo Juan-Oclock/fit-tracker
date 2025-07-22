@@ -1,8 +1,6 @@
 import { useTheme } from "@/hooks/use-theme";
 import { useAuth } from "@/hooks/useAuth";
-import { Sun, Moon, Menu, X, LogOut, User } from "lucide-react";
-import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Sun, Moon, Menu, X, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,7 +74,7 @@ export default function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) 
             </div>
           </div>
           
-          <div className="flex items-center space-x-1 flex-shrink-0">
+          <div className="flex items-center space-x-3 flex-shrink-0">
             <button 
               onClick={toggleTheme}
               className="p-1.5 rounded-xl bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/30 transition-all duration-200 backdrop-blur-sm group flex items-center justify-center"
