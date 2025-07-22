@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff, Mail } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,27 +96,37 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-center">Welcome to FitTracker</DialogTitle>
-          <DialogDescription className="text-center text-gray-600">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md mx-auto bg-[#090C11] border border-slate-800 rounded-2xl p-6">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-center text-white text-2xl font-bold">Welcome to FitTracker</DialogTitle>
+          <DialogDescription className="text-center text-slate-400 text-base">
             Sign in to your account or create a new one to start tracking your workouts
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="signin" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="signin">Sign In</TabsTrigger>
-            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 bg-slate-900/50 border border-slate-700 rounded-2xl p-1 h-12">
+            <TabsTrigger 
+              value="signin" 
+              className="text-slate-400 data-[state=active]:text-white data-[state=active]:bg-[#FFD300] data-[state=active]:text-[#090C11] font-semibold rounded-2xl transition-all duration-200 h-10 flex items-center justify-center"
+            >
+              Sign In
+            </TabsTrigger>
+            <TabsTrigger 
+              value="signup" 
+              className="text-slate-400 data-[state=active]:text-white data-[state=active]:bg-[#FFD300] data-[state=active]:text-[#090C11] font-semibold rounded-2xl transition-all duration-200 h-10 flex items-center justify-center"
+            >
+              Sign Up
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="signin" className="space-y-4">
-            <div className="space-y-4">
+          <TabsContent value="signin" className="space-y-6 mt-6">
+            <div className="space-y-4 px-4">
               <Button
                 onClick={() => handleSocialAuth('google')}
                 variant="outline"
                 disabled={isLoading}
-                className="w-full"
+                className="w-full border-slate-700 bg-slate-900/30 text-white hover:bg-slate-800/50 hover:border-[#FFD300]/50 transition-all duration-200"
               >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -155,16 +165,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t border-slate-700" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  <span className="bg-[#090C11] px-3 text-slate-400 font-medium">OR CONTINUE WITH</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-white font-medium">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -172,10 +182,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
+                    className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-[#FFD300]/50 focus:ring-[#FFD300]/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-white font-medium">Password</Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -184,12 +195,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={isLoading}
+                      className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-[#FFD300]/50 focus:ring-[#FFD300]/20 pr-10"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-slate-400 hover:text-[#FFD300]"
                       onClick={() => setShowPassword(!showPassword)}
                       disabled={isLoading}
                     >
@@ -206,20 +218,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <Button
                 onClick={() => handleEmailAuth(false)}
                 disabled={isLoading}
-                className="w-full"
+                className="w-full bg-[#FFD300] text-[#090C11] font-semibold hover:bg-[#FFD300]/90 transition-all duration-200 py-3 text-base disabled:opacity-50"
               >
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </div>
           </TabsContent>
 
-          <TabsContent value="signup" className="space-y-4">
-            <div className="space-y-4">
+          <TabsContent value="signup" className="space-y-6 mt-6">
+            <div className="space-y-4 px-4">
               <Button
                 onClick={() => handleSocialAuth('google')}
                 variant="outline"
                 disabled={isLoading}
-                className="w-full"
+                className="w-full border-slate-700 bg-slate-900/30 text-white hover:bg-slate-800/50 hover:border-[#FFD300]/50 transition-all duration-200"
               >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                   <path
@@ -258,16 +270,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t border-slate-700" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  <span className="bg-[#090C11] px-3 text-slate-400 font-medium">OR CONTINUE WITH</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email</Label>
+                  <Label htmlFor="signup-email" className="text-white font-medium">Email</Label>
                   <Input
                     id="signup-email"
                     type="email"
@@ -275,10 +287,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
+                    className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-[#FFD300]/50 focus:ring-[#FFD300]/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
+                  <Label htmlFor="signup-password" className="text-white font-medium">Password</Label>
                   <div className="relative">
                     <Input
                       id="signup-password"
@@ -287,12 +300,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={isLoading}
+                      className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-[#FFD300]/50 focus:ring-[#FFD300]/20 pr-10"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-slate-400 hover:text-[#FFD300]"
                       onClick={() => setShowPassword(!showPassword)}
                       disabled={isLoading}
                     >
@@ -309,7 +323,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <Button
                 onClick={() => handleEmailAuth(true)}
                 disabled={isLoading}
-                className="w-full"
+                className="w-full bg-[#FFD300] text-[#090C11] font-semibold hover:bg-[#FFD300]/90 transition-all duration-200 py-3 text-base disabled:opacity-50"
               >
                 {isLoading ? "Creating account..." : "Create Account"}
               </Button>
