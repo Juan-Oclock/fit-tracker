@@ -200,6 +200,7 @@ export const monthlyGoals = pgTable("monthly_goals", {
 // NEW: Schema validators
 export const insertGoalPhotoSchema = createInsertSchema(goalPhotos).omit({
   id: true,
+  userId: true,
   timestamp: true,
 });
 

@@ -24,9 +24,13 @@ import CommunityDashboard from "@/pages/community";
 import DebugWorkouts from "@/pages/debug-workouts";
 import { useState } from "react";
 import { NavigationGuardProvider } from "@/contexts/navigation-guard-context";
+import { useWorkoutReminders } from "@/hooks/use-workout-reminders";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  
+  // Initialize workout reminders system
+  useWorkoutReminders();
 
   return (
     <Switch>

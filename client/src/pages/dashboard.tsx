@@ -7,30 +7,46 @@ import { ActiveWorkoutTimer } from "@/components/dashboard/active-workout-timer"
 import { useWorkoutSession } from "@/hooks/use-workout-session";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+
 
 export default function Dashboard() {
   const { hasActiveSession, clearSession } = useWorkoutSession();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  
+  const currentDate = new Date();
+  const dateString = currentDate.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    day: 'numeric',
+    month: 'short'
+  });
+  
   return (
-    <div className="space-y-6">
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2">Dashboard</h2>
-        <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">Track your fitness journey and monitor your progress</p>
+    <div className="min-h-screen bg-[#090C11] px-2 py-3">
+      {/* Header Section */}
+      <div className="mb-4">
+        <div>
+          <h1 className="text-white font-semibold text-lg">Hello, {user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User'}</h1>
+          <p className="text-slate-400 text-sm">{dateString}</p>
+        </div>
         
-        {/* Temporary Debug Button */}
+        {/* Debug Session Warning */}
         {hasActiveSession && (
-          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2">
-              ⚠️ Active workout session detected - this is preventing "New Workout" from being enabled.
+          <div className="mt-4 p-3 bg-[#FFD300]/10 border border-[#FFD300]/20 rounded-xl">
+            <p className="text-sm text-[#FFD300] mb-2">
+              ⚠️ Active workout session detected
             </p>
             <Button 
               variant="outline" 
               size="sm"
+              className="border-[#FFD300]/30 text-[#FFD300] hover:bg-[#FFD300]/10"
               onClick={() => {
                 clearSession();
                 toast({
                   title: "Session Cleared",
-                  description: "Workout session has been cleared. You can now create a new workout.",
+                  description: "Workout session has been cleared.",
                   duration: 3000,
                 });
               }}
@@ -41,17 +57,21 @@ export default function Dashboard() {
         )}
       </div>
 
-      <StatsCards />
-      
-      {/* Active Workout Timer - Show when there's an active exercise timer */}
-      <ActiveWorkoutTimer />
-      
-      {/* NEW: Goal Card - Full width */}
-      <GoalCard />
+      {/* Main Content */}
+      <div className="space-y-3">
+        <StatsCards />
+        
+        {/* Active Workout Timer */}
+        <ActiveWorkoutTimer />
+        
+        {/* Goal Card */}
+        <GoalCard />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        <QuickActions />
-        <RecentWorkouts />
+        {/* Quick Actions and Recent Workouts */}
+        <div className="space-y-3">
+          <QuickActions />
+          <RecentWorkouts />
+        </div>
       </div>
     </div>
   );

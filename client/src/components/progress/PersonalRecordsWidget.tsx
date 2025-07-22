@@ -1,7 +1,7 @@
 import { useWorkoutsWithExercises } from '@/hooks/use-workouts';
 import { type WorkoutWithExercises } from '@shared/schema';
 
-interface PersonalRecord {
+export interface PersonalRecord {
   bestWeight: number;
   bestWeightReps: number;
   bestWeightDate: Date;
@@ -10,7 +10,7 @@ interface PersonalRecord {
   bestRepsDate: Date;
 }
 
-function getBestRecords(workouts: WorkoutWithExercises[] | undefined): Record<string, PersonalRecord> {
+export function getBestRecords(workouts: WorkoutWithExercises[] | undefined): Record<string, PersonalRecord> {
   // Map: exerciseName => { bestWeight, bestWeightReps, bestWeightDate, bestReps, bestRepsWeight, bestRepsDate }
   const records: Record<string, PersonalRecord> = {};
   workouts?.forEach((w) => {

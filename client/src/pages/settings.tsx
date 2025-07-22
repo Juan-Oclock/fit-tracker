@@ -4,24 +4,37 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings as SettingsIcon, Palette, Database, Bell } from "lucide-react";
+import { Settings as SettingsIcon, Palette, Database, Bell, Download, AlertTriangle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 import { useEffect, useState, useRef } from "react";
 import { getShowInCommunity, setShowInCommunity } from "@/lib/community";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { useWorkoutPreferences } from "@/hooks/use-workout-preferences";
+import { useNotificationPreferences } from "@/hooks/use-notification-preferences";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const { preferences, setDefaultRestTime } = useWorkoutPreferences();
+  const { 
+    preferences: notificationPrefs, 
+    setWorkoutReminders, 
+    setRestTimerAlerts, 
+    setPersonalRecordAlerts 
+  } = useNotificationPreferences();
   const [showInCommunity, setShowInCommunityState] = useState(false);
   const [loadingCommunity, setLoadingCommunity] = useState(false);
   const [username, setUsername] = useState("");
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+  const [clearingData, setClearingData] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user?.id) {
@@ -85,6 +98,111 @@ export default function Settings() {
   }
 }
 
+  // Handle data export
+  async function handleExportData() {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to export data",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setExportingData(true);
+    try {
+      // Make authenticated request to export endpoint
+      const response = await fetch('/api/export/data', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Export failed: ${response.statusText}`);
+      }
+
+      // Get the CSV content
+      const csvContent = await response.text();
+      
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename with current date
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.download = `fit-tracker-export-${timestamp}.csv`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Export Successful",
+        description: "Your workout data has been downloaded as a CSV file",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : "Failed to export data",
+        variant: "destructive"
+      });
+    } finally {
+      setExportingData(false);
+    }
+  }
+
+  // Handles clearing all user data with confirmation
+  const handleClearData = async () => {
+    if (!user?.id) return;
+
+    setClearingData(true);
+    try {
+      console.log('[Clear Data] Starting data deletion for user:', user.id);
+      
+      const response = await apiRequest('DELETE', '/api/clear/data', {});
+      
+      console.log('[Clear Data] API response:', response);
+      
+      toast({
+        title: "Data Cleared Successfully",
+        description: "All your workout data has been permanently deleted. You will now be logged out.",
+        variant: "default"
+      });
+
+      // Wait a moment for the toast to show, then logout
+      setTimeout(async () => {
+        try {
+          await supabase.auth.signOut();
+          // Force page reload to clear any cached data and go to landing page
+          window.location.href = '/';
+        } catch (logoutError) {
+          console.error('[Clear Data] Logout error:', logoutError);
+          // Force reload anyway
+          window.location.href = '/';
+        }
+      }, 2000);
+      
+    } catch (error) {
+      console.error('[Clear Data] Error:', error);
+      toast({
+        title: "Clear Data Failed",
+        description: error instanceof Error ? error.message : "Failed to clear data",
+        variant: "destructive"
+      });
+    } finally {
+      setClearingData(false);
+      setShowClearConfirm(false);
+    }
+  };
 
   // Handles avatar image selection and upload to Supabase Storage
 async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -271,23 +389,34 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
                 <Label>Workout reminders</Label>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Get reminded to work out</p>
               </div>
-              <Switch />
+              <Switch 
+                checked={notificationPrefs.workoutReminders}
+                onCheckedChange={setWorkoutReminders}
+              />
             </div>
 
+            {/* Rest timer alerts - temporarily hidden
             <div className="flex items-center justify-between">
               <div>
                 <Label>Rest timer alerts</Label>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Get notified when rest time is over</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={notificationPrefs.restTimerAlerts}
+                onCheckedChange={setRestTimerAlerts}
+              />
             </div>
+            */}
 
             <div className="flex items-center justify-between">
               <div>
                 <Label>Personal record alerts</Label>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Celebrate when you hit a new PR</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={notificationPrefs.personalRecordAlerts}
+                onCheckedChange={setPersonalRecordAlerts}
+              />
             </div>
           </CardContent>
         </Card>
@@ -306,16 +435,72 @@ async function handleProfileImageChange(e: React.ChangeEvent<HTMLInputElement>) 
                 <Label>Export Data</Label>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Download your workout data</p>
               </div>
-              <Button variant="outline">Export CSV</Button>
+              <Button 
+                variant="outline" 
+                onClick={handleExportData}
+                disabled={exportingData}
+                className="flex items-center space-x-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>{exportingData ? "Exporting..." : "Export CSV"}</span>
+              </Button>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
                 <Label>Clear All Data</Label>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Permanently delete all your data</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Permanently delete all your workout data</p>
               </div>
-              <Button variant="destructive">Clear Data</Button>
+              <div className="flex gap-2">
+                {showClearConfirm ? (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowClearConfirm(false)}
+                      disabled={clearingData}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={handleClearData}
+                      disabled={clearingData}
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      <span>{clearingData ? "Clearing..." : "Confirm Delete"}</span>
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    variant="destructive"
+                    onClick={() => setShowClearConfirm(true)}
+                    disabled={clearingData}
+                  >
+                    Clear Data
+                  </Button>
+                )}
+              </div>
             </div>
+            {showClearConfirm && (
+              <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-red-800 dark:text-red-200">
+                    <p className="font-medium mb-1">This action cannot be undone!</p>
+                    <p>This will permanently delete:</p>
+                    <ul className="list-disc list-inside mt-1 space-y-0.5">
+                      <li>All workout sessions and exercises</li>
+                      <li>Personal records and achievements</li>
+                      <li>Monthly goals and progress</li>
+                      <li>Profile settings and preferences</li>
+                    </ul>
+                    <p className="mt-2 font-medium">You will be logged out after deletion.</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div> {/* CLOSE .space-y-6 */}

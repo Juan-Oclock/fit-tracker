@@ -47,10 +47,10 @@ export function MonthlyGoalSettingDialog({ currentGoal, month, year, trigger }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (goalValue < 1 || goalValue > 31 || isNaN(goalValue)) {
+    if (goalValue < 0 || goalValue > 31 || isNaN(goalValue)) {
       toast({
         title: "Invalid Goal",
-        description: "Please enter a number between 1 and 31.",
+        description: "Please enter a number between 0 and 31 (0 to clear goal).",
         variant: "destructive",
       });
       return;
@@ -69,8 +69,8 @@ export function MonthlyGoalSettingDialog({ currentGoal, month, year, trigger }: 
     try {
       await updateMonthlyGoal.mutateAsync({ targetWorkouts: goalValue, month, year });
       toast({
-        title: "Goal Updated!",
-        description: `Your monthly workout goal is now ${goalValue} workouts.`,
+        title: goalValue === 0 ? "Goal Cleared!" : "Goal Updated!",
+        description: goalValue === 0 ? "Your monthly workout goal has been cleared." : `Your monthly workout goal is now ${goalValue} workouts.`,
       });
       setOpen(false);
     } catch (error) {
@@ -116,7 +116,7 @@ export function MonthlyGoalSettingDialog({ currentGoal, month, year, trigger }: 
             )}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
+        <form id="goal-form" onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="goal" className="text-right">
@@ -126,12 +126,12 @@ export function MonthlyGoalSettingDialog({ currentGoal, month, year, trigger }: 
                 <Input
                   id="goal"
                   type="number"
-                  min="1"
+                  min="0"
                   max={isCurrentMonth ? maxPossibleWorkouts.toString() : "31"}
                   value={newGoal}
                   onChange={(e) => setNewGoal(e.target.value)}
                   className={`${isGoalTooHigh ? 'border-red-500 focus:border-red-500' : ''}`}
-                  placeholder="Enter your monthly goal"
+                  placeholder="Enter your monthly goal (0 to clear)"
                 />
                 {isGoalTooHigh && isCurrentMonth && (
                   <div className="flex items-center space-x-2 text-sm text-red-600 dark:text-red-400">
@@ -163,6 +163,19 @@ export function MonthlyGoalSettingDialog({ currentGoal, month, year, trigger }: 
               onClick={() => setOpen(false)}
             >
               Cancel
+            </Button>
+            <Button 
+              type="button" 
+              variant="destructive" 
+              onClick={() => {
+                setNewGoal('0');
+                const form = document.getElementById('goal-form') as HTMLFormElement;
+                if (form) {
+                  form.requestSubmit();
+                }
+              }}
+            >
+              Clear Goal
             </Button>
             <Button type="submit" disabled={isGoalTooHigh && isCurrentMonth}>
               Update Goal

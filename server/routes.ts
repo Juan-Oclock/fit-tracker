@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { getStorage } from "./storage";
 import { setupAuth, isAuthenticated } from "./supabaseAuth";
+import { exportUserData } from './routes/export.js';
+import { clearUserData } from './routes/clear-data.js';
 import { 
   insertExerciseSchema, 
   insertWorkoutSchema, 
@@ -759,6 +761,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete goal photo endpoint
+  app.delete("/api/goals/photos/:photoId", isAuthenticated, async (req: any, res) => {
+    try {
+      const photoId = parseInt(req.params.photoId);
+      const userId = req.user.id;
+      
+      console.log(`[Delete Goal Photo] User ${userId} attempting to delete photo ${photoId}`);
+      
+      const storage = await getStorage();
+      const deleted = await storage.deleteGoalPhoto(photoId, userId);
+      
+      if (deleted) {
+        console.log(`[Delete Goal Photo] Successfully deleted photo ${photoId} for user ${userId}`);
+        res.json({ success: true, message: "Goal photo deleted successfully" });
+      } else {
+        console.log(`[Delete Goal Photo] Failed to delete photo ${photoId} for user ${userId} - photo not found or unauthorized`);
+        res.status(404).json({ error: "Goal photo not found or unauthorized" });
+      }
+    } catch (error) {
+      console.error("Error deleting goal photo:", error);
+      res.status(500).json({ error: "Failed to delete goal photo" });
+    }
+  });
+
   // Add this after the existing workout routes
   app.get('/api/workouts-with-exercises', isAuthenticated, async (req: any, res) => {
   try {
@@ -858,6 +884,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to update community presence' });
     }
   });
+
+  // Export user data endpoint
+  app.get('/api/export/data', isAuthenticated, exportUserData);
+
+  // Clear all user data endpoint
+  app.delete('/api/clear/data', isAuthenticated, clearUserData);
 
   const httpServer = createServer(app);
   return httpServer;

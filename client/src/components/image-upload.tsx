@@ -11,9 +11,10 @@ interface ImageUploadProps {
   onImageSelect: (compressedImage: string | null) => void;
   currentImage?: string | null;
   className?: string;
+  showDescription?: boolean;
 }
 
-export function ImageUpload({ onImageSelect, currentImage, className }: ImageUploadProps) {
+export function ImageUpload({ onImageSelect, currentImage, className, showDescription = true }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(currentImage || null);
   const [isCompressing, setIsCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,7 +87,7 @@ export function ImageUpload({ onImageSelect, currentImage, className }: ImageUpl
 
   return (
     <div className={className}>
-      <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+      <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
         Workout Photo (Optional)
       </Label>
       
@@ -129,7 +130,7 @@ export function ImageUpload({ onImageSelect, currentImage, className }: ImageUpl
         <Button
           type="button"
           variant="outline"
-          className="mt-2 w-full h-20 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500"
+          className="mt-2 w-full h-20 border border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500"
           onClick={triggerFileInput}
           disabled={isCompressing}
         >
@@ -142,9 +143,11 @@ export function ImageUpload({ onImageSelect, currentImage, className }: ImageUpl
         </Button>
       )}
 
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-        Capture your progress with a mirror selfie or gym photo. Images are automatically compressed to ~50KB.
-      </p>
+      {showDescription && (
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          Capture your progress with a mirror selfie or gym photo. Images are automatically compressed to ~50KB.
+        </p>
+      )}
     </div>
   );
 }

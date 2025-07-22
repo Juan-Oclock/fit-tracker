@@ -1,7 +1,59 @@
 import { useWorkoutStats } from "@/hooks/use-workouts";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Calendar, Star, MessageCircle } from "lucide-react";
+import { Zap, Calendar, Star, MessageCircle, Target } from "lucide-react";
 import { useMonthlyGoalData } from "@/hooks/use-monthly-goals";
+
+// Circular Progress Component
+interface CircularProgressProps {
+  percentage: number;
+  size?: number;
+  strokeWidth?: number;
+  className?: string;
+}
+
+function CircularProgress({ percentage, size = 120, strokeWidth = 8, className = "" }: CircularProgressProps) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDasharray = circumference;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className={`relative ${className}`} style={{ width: size, height: size }}>
+      <svg
+        className="transform -rotate-90"
+        width={size}
+        height={size}
+      >
+        {/* Background circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#262B32"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        {/* Progress circle */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#FFD300"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={strokeDasharray}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="transition-all duration-300 ease-in-out"
+        />
+      </svg>
+      {/* Percentage text */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-2xl font-bold text-white">{percentage}%</span>
+      </div>
+    </div>
+  );
+}
 
 export default function StatsCards() {
   const { data: stats, isLoading } = useWorkoutStats();
@@ -14,14 +66,21 @@ export default function StatsCards() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="h-20 bg-slate-200 dark:bg-slate-700 rounded"></div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="space-y-6">
+        {/* Main Progress Card Skeleton */}
+        <div className="border border-slate-800 rounded-2xl p-4 animate-pulse">
+          <div className="flex items-center justify-center">
+            <div className="w-32 h-32 bg-[#090C11] rounded-full"></div>
+          </div>
+        </div>
+        {/* Stats Grid Skeleton */}
+        <div className="grid grid-cols-2 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="border border-slate-800 rounded-2xl p-4 animate-pulse">
+              <div className="h-16 bg-[#090C11] rounded"></div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -32,124 +91,97 @@ export default function StatsCards() {
   const completionPercentage = targetWorkouts > 0 ? Math.round((completedWorkouts / targetWorkouts) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6 mb-6 sm:mb-8">
-      {/* Combined Workouts Card */}
-      <Card className="transition-all duration-200 hover:shadow-md">
-        <CardContent className="p-3 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Workout Metrics</p>
-            </div>
-            <div className="p-2 sm:p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
-              <Zap className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
-            </div>
+    <div className="space-y-3">
+      {/* Main Weekly Progress Card */}
+      <div className="border border-slate-800 rounded-2xl p-4">
+        <div className="flex items-center justify-center mb-3">
+          <CircularProgress percentage={completionPercentage} size={100} />
+        </div>
+        
+        <div className="text-center mb-3">
+          <h3 className="text-white text-xl font-bold mb-1">Weekly Progress</h3>
+          <p className="text-slate-400 text-sm">
+            {completedWorkouts} exercises left
+          </p>
+        </div>
+        
+        {/* Progress Details */}
+        <div className="border border-slate-700 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-slate-400 text-sm">Goal Completion</span>
+            <span className="text-[#FFD300] font-semibold">{completedWorkouts}/{targetWorkouts}</span>
           </div>
-          
-          <div className="space-y-3">
-            {/* Goal Completion */}
-            <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Goal Completion:</p>
-              <p className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
-                {completedWorkouts}/{targetWorkouts} workouts{' '}
-                <span className="text-yellow-500 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-1 rounded-md text-sm">
-                  {completionPercentage}%
-                </span>
-              </p>
-            </div>
-            
-            {/* This Week */}
-            <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">This Week</p>
-              <p className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">{stats?.thisWeek || 0}</p>
-            </div>
-            
-            {/* Total Workouts this Month */}
-            <div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Total Workouts this Month</p>
-              <p className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">{completedWorkouts}</p>
-            </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 text-sm">This Week</span>
+            <span className="text-white font-semibold">{stats?.thisWeek || 0} workouts</span>
           </div>
-          
-          <div className="mt-4">
-            <span className="text-sm text-slate-600 dark:text-slate-400">
-              {completedWorkouts === 0 ? "Start your first workout!" : "Track your progress over time"}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Personal Records Card */}
-      <Card className="transition-all duration-200 hover:shadow-md">
-        <CardContent className="p-3 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Personal Records</p>
-            </div>
-            <div className="p-2 sm:p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
-              <Star className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Personal Records */}
+        <div className="border border-slate-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-white font-semibold text-sm">Personal Records</h4>
+            <div className="p-2 bg-[#FFD300]/20 rounded-lg">
+              <Star className="w-4 h-4 text-[#FFD300]" />
             </div>
           </div>
           
           {stats?.personalRecords ? (
             <div className="space-y-2">
               <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Heaviest Exercise Performed</p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Exercise: {stats.personalRecords.exerciseName || 'Unknown'}
-                </p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Weight: {stats.personalRecords.weight || 0} kg
-                </p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                  Category: {stats.personalRecords.category ? 
-                    stats.personalRecords.category.charAt(0).toUpperCase() + stats.personalRecords.category.slice(1) : 
-                    'Unknown'
-                  }
+                <p className="text-slate-400 text-xs mb-1">Best Exercise</p>
+                <p className="text-white font-semibold text-sm">
+                  {stats.personalRecords.exerciseName || 'None yet'}
                 </p>
               </div>
-              <div className="mt-4">
-                <span className="text-sm text-slate-600 dark:text-slate-400">Great achievements!</span>
+              <div>
+                <p className="text-slate-400 text-xs mb-1">Max Weight</p>
+                <p className="text-[#FFD300] font-bold text-lg">
+                  {stats.personalRecords.weight || 0} kg
+                </p>
               </div>
             </div>
           ) : (
-            <div className="mt-4">
-              <span className="text-sm text-slate-600 dark:text-slate-400">Set your first PR!</span>
+            <div className="text-center py-4">
+              <Target className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+              <p className="text-slate-400 text-xs">Set your first PR!</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Quote of the Day Card */}
-      <Card className="transition-all duration-200 hover:shadow-md">
-        <CardContent className="p-3 sm:p-6">
+        {/* Quote of the Day */}
+        <div className="border border-slate-800 rounded-2xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Quote of the Day</p>
-            </div>
-            <div className="p-2 sm:p-3 rounded-lg" style={{ backgroundColor: '#262B32' }}>
-              <MessageCircle className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: '#FFD300' }} />
+            <h4 className="text-white font-semibold text-sm">Daily Motivation</h4>
+            <div className="p-2 bg-[#FFD300]/20 rounded-lg">
+              <MessageCircle className="w-4 h-4 text-[#FFD300]" />
             </div>
           </div>
+          
           {stats?.dailyQuote ? (
-            <div className="space-y-2">
-              <p className="text-sm text-slate-700 dark:text-slate-300 italic leading-relaxed">
+            <div>
+              <p className="text-slate-300 text-xs italic leading-relaxed mb-2">
                 "{stats.dailyQuote.text}"
               </p>
               {stats.dailyQuote.author && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-slate-500 text-xs">
                   — {stats.dailyQuote.author}
                 </p>
               )}
             </div>
           ) : (
-            <div className="mt-4">
-              <span className="text-sm text-slate-600 dark:text-slate-400">
-                Stay motivated!
-              </span>
+            <div className="text-center py-2">
+              <p className="text-slate-400 text-xs">
+                "Success is the sum of small efforts repeated day in and day out."
+              </p>
+              <p className="text-slate-500 text-xs mt-1">— Robert Collier</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

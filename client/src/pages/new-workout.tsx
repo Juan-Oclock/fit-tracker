@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWorkoutSession } from "@/hooks/use-workout-session";
 import { useNavigationGuardContext } from "@/contexts/navigation-guard-context";
 import { useWorkoutPreferences } from "@/hooks/use-workout-preferences";
+import { usePersonalRecordNotifications } from "@/hooks/use-personal-record-notifications";
 import { WorkoutNavigationGuard } from "@/components/workout-navigation-guard";
 
 type CompletedExercise = {
@@ -53,6 +54,7 @@ export default function NewWorkout() {
   const { data: exercises = [] } = useExercises();
   const { hasActiveSession, saveSession, clearSession } = useWorkoutSession();
   const { preferences } = useWorkoutPreferences();
+  const { checkAndNotifyPersonalRecord } = usePersonalRecordNotifications();
 
 
   // State for the new UI structure
@@ -258,6 +260,15 @@ export default function NewWorkout() {
     // Add to completed exercises
     setCompletedExercises(prev => [...prev, completedExercise]);
 
+    // Check for personal record and show notification if applicable
+    checkAndNotifyPersonalRecord(
+      selectedExercise.name,
+      currentExercise.weight,
+      currentExercise.reps
+    ).catch(error => {
+      console.error('Error checking personal record:', error);
+    });
+
     // Reset current exercise form
     setCurrentExercise({
       exerciseId: 0,
@@ -281,11 +292,14 @@ export default function NewWorkout() {
       stopRestTimer();
     }
 
-    toast({
-      title: "Exercise Completed!",
-      description: "Exercise added to your workout. You can add more exercises or save your workout.",
-      duration: 3000,
-    });
+    // Small delay to allow personal record toast to appear first
+    setTimeout(() => {
+      toast({
+        title: "Exercise Completed!",
+        description: "Exercise added to your workout. You can add more exercises or save your workout.",
+        duration: 3000,
+      });
+    }, 500);
   };
 
   // Rest timer functions (simplified - no global timer integration)
