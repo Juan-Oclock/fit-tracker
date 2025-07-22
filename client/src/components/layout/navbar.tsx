@@ -48,7 +48,7 @@ export default function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) 
             {/* Mobile menu button */}
             <button
               onClick={onMenuToggle}
-              className="lg:hidden p-1.5 rounded-xl transition-all duration-200 backdrop-blur-sm flex-shrink-0"
+              className="lg:hidden p-1 rounded-xl transition-all duration-200 backdrop-blur-sm flex-shrink-0 flex items-center justify-center mr-2"
               style={{backgroundColor: '#262B32', borderColor: '#3a3f47'}}
             >
               {isMobileMenuOpen ? (
@@ -79,7 +79,7 @@ export default function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) 
           <div className="flex items-center space-x-1 flex-shrink-0">
             <button 
               onClick={toggleTheme}
-              className="p-1.5 rounded-xl bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/30 transition-all duration-200 backdrop-blur-sm group"
+              className="p-1.5 rounded-xl bg-gray-800/80 hover:bg-gray-700/80 border border-gray-700/30 transition-all duration-200 backdrop-blur-sm group flex items-center justify-center"
             >
               {theme === "dark" ? (
                 <Sun className="w-4 h-4 text-yellow-500 group-hover:text-yellow-400 transition-colors" />
@@ -90,14 +90,11 @@ export default function Navbar({ onMenuToggle, isMobileMenuOpen }: NavbarProps) 
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <div className="relative cursor-pointer group">
-                  <div className="absolute inset-0 crypto-gradient rounded-full blur-sm opacity-0 group-hover:opacity-75 transition-opacity duration-300"></div>
-                  <Avatar className="h-7 w-7 relative border-2 border-gray-700/30 transition-all duration-200">
-                    <AvatarImage src={user?.user_metadata?.avatar_url || ""} />
-                    <AvatarFallback className="crypto-gradient text-white text-xs font-semibold">
-                      {user?.user_metadata?.full_name?.[0] || user?.email?.[0] || "U"}
-                    </AvatarFallback>
-                  </Avatar>
+                <div 
+                  className="relative cursor-pointer group flex items-center justify-center rounded-full transition-all duration-200" 
+                  style={{backgroundColor: '#FFD300', color: '#000000', fontSize: '12px', fontWeight: '900', width: '28px', height: '28px'}}
+                >
+                  {(user?.user_metadata?.full_name?.[0] || user?.email?.[0] || "U").toUpperCase()}
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 bg-black/95 backdrop-blur-xl border border-gray-800/50">
