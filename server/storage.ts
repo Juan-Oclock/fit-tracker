@@ -522,7 +522,7 @@ export class PostgresStorage implements IStorage {
 
     // Add this before the thisWeek query
     const allUserWorkouts = await db.select().from(workouts).where(eq(workouts.userId, userId));
-    console.log('All user workouts:', allUserWorkouts.map(w => ({ id: w.id, date: w.date })));
+    console.log('All user workouts:', allUserWorkouts.map((w: any) => ({ id: w.id, date: w.date })));
     console.log('UTC week calculation:', { now, startOfWeek, utcDayOfWeek, utcDaysToSubtract });
 
     const thisWeek = await db
@@ -1002,6 +1002,7 @@ export class MemStorage implements IStorage {
       profileImageUrl: userData.profileImageUrl ?? null,
       weeklyGoal: existingUser?.weeklyGoal || 4,
       goalSetAt: existingUser?.goalSetAt || null,
+      showInCommunity: existingUser?.showInCommunity ?? false,
       createdAt: existingUser?.createdAt || new Date(),
       updatedAt: new Date(),
     };
@@ -1113,8 +1114,7 @@ export class MemStorage implements IStorage {
     defaultExercises.forEach(exercise => {
       const newExercise: Exercise = { 
         ...exercise, 
-        id: this.currentExerciseId++,
-        imageUrl: exercise.imageUrl || null
+        id: this.currentExerciseId++
       };
       this.exercises.set(newExercise.id, newExercise);
     });
@@ -1137,8 +1137,7 @@ export class MemStorage implements IStorage {
       ...insertExercise, 
       id: this.currentExerciseId++,
       instructions: insertExercise.instructions || null,
-      equipment: insertExercise.equipment || null,
-      imageUrl: insertExercise.imageUrl || null
+      equipment: insertExercise.equipment || null
     };
     this.exercises.set(exercise.id, exercise);
     return exercise;
@@ -1259,7 +1258,8 @@ export class MemStorage implements IStorage {
             reps: exercise.reps || null,
             weight: exercise.weight || null,
             restTime: exercise.restTime || null,
-            notes: exercise.notes || null
+            notes: exercise.notes || null,
+            durationSeconds: exercise.durationSeconds || 0
           };
           this.workoutExercises.set(workoutExercise.id, workoutExercise);
           
@@ -1333,7 +1333,8 @@ export class MemStorage implements IStorage {
       reps: insertWorkoutExercise.reps || null,
       weight: insertWorkoutExercise.weight || null,
       restTime: insertWorkoutExercise.restTime || null,
-      notes: insertWorkoutExercise.notes || null
+      notes: insertWorkoutExercise.notes || null,
+      durationSeconds: insertWorkoutExercise.durationSeconds || 0
     };
     this.workoutExercises.set(workoutExercise.id, workoutExercise);
     return workoutExercise;
