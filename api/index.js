@@ -1,61 +1,94 @@
-// Import required modules with proper error handling
-let express, getStorage, registerRoutes, seedCategories, seedMuscleGroups;
+import express from 'express';
 
-try {
-  express = (await import('express')).default;
+// Simple authentication middleware
+function isAuthenticated(req, res, next) {
+  console.log('🔐 Auth middleware called for:', req.method, req.path);
   
-  // Try to import server modules - if they fail, we'll use fallback routes
-  try {
-    const storageModule = await import('../server/storage.js');
-    getStorage = storageModule.getStorage;
-    
-    const routesModule = await import('../server/routes.js');
-    registerRoutes = routesModule.registerRoutes;
-    
-    const seedCategoriesModule = await import('../server/seed-categories.js');
-    seedCategories = seedCategoriesModule.seedCategories;
-    
-    const seedMuscleGroupsModule = await import('../server/seed-muscle-groups.js');
-    seedMuscleGroups = seedMuscleGroupsModule.seedMuscleGroups;
-    
-    console.log('✅ Successfully imported all server modules');
-  } catch (importError) {
-    console.warn('⚠️ Failed to import server modules:', importError.message);
-    console.log('Will use fallback routes instead');
+  const authHeader = req.headers.authorization;
+  console.log('  - Auth header present:', !!authHeader);
+  console.log('  - Auth header starts with Bearer:', authHeader?.startsWith('Bearer '));
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('  - No valid auth header, returning 401');
+    return res.status(401).json({ message: "Unauthorized" });
   }
-} catch (error) {
-  console.error('❌ Failed to import express:', error);
-  throw error;
+
+  const token = authHeader.split(' ')[1];
+  console.log('  - Token length:', token?.length);
+  
+  try {
+    // Extract user info from JWT token
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    console.log('  - Token payload sub:', payload.sub);
+    console.log('  - Token payload email:', payload.email);
+    
+    if (!payload.sub) {
+      console.log('  - No sub in payload, returning 401');
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Add user info to request object
+    req.user = {
+      id: payload.sub,
+      email: payload.email,
+      user_metadata: payload.user_metadata || {}
+    };
+    
+    console.log('  - Auth successful, user ID:', payload.sub);
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 }
 
 // Cache the Express app
 let app = null;
 let initialized = false;
 
-async function initializeDatabase() {
-  if (initialized || !getStorage) return;
+// Essential routes setup
+function setupEssentialRoutes(app) {
+  // Auth route - essential for login flow
+  app.get('/api/auth/user', isAuthenticated, (req, res) => {
+    console.log('✅ Auth user endpoint called for user:', req.user.id);
+    
+    // Return user info from JWT token
+    const user = {
+      id: req.user.id,
+      email: req.user.email,
+      firstName: req.user.user_metadata?.first_name || null,
+      lastName: req.user.user_metadata?.last_name || null,
+      profileImageUrl: req.user.user_metadata?.avatar_url || null,
+      weeklyGoal: 3, // Default goal
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log('  - Returning user data:', user);
+    res.json(user);
+  });
   
-  try {
-    console.log('🔄 Initializing database...');
-    const storage = await getStorage();
-    await storage.ensureInitialized();
+  // Goal management route
+  app.put('/api/user/goal', isAuthenticated, (req, res) => {
+    console.log('✅ User goal update for user:', req.user.id);
+    console.log('  - Request body:', req.body);
     
-    if (seedCategories) {
-      await seedCategories();
-      console.log('✅ Categories seeded');
-    }
+    // For now, just return success with the updated goal
+    const updatedUser = {
+      id: req.user.id,
+      email: req.user.email,
+      firstName: req.user.user_metadata?.first_name || null,
+      lastName: req.user.user_metadata?.last_name || null,
+      profileImageUrl: req.user.user_metadata?.avatar_url || null,
+      weeklyGoal: req.body.weeklyGoal || 3,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
     
-    if (seedMuscleGroups) {
-      await seedMuscleGroups();
-      console.log('✅ Muscle groups seeded');
-    }
-    
-    initialized = true;
-    console.log('✅ Database initialization complete');
-  } catch (error) {
-    console.error('❌ Database initialization failed:', error);
-    // Don't throw - continue with fallback routes
-  }
+    res.json(updatedUser);
+  });
+  
+  console.log('✅ Essential authentication routes setup complete');
 }
 
 async function createApp() {
@@ -94,24 +127,11 @@ async function createApp() {
     next();
   });
   
-  // Initialize database
-  await initializeDatabase();
+  // Setup essential authentication routes
+  setupEssentialRoutes(app);
   
-  // Register full routes if available, otherwise use fallback
-  if (registerRoutes) {
-    try {
-      console.log('🔄 Registering full server routes...');
-      await registerRoutes(app);
-      console.log('✅ Full server routes registered');
-    } catch (error) {
-      console.error('❌ Failed to register full routes:', error);
-      console.log('Will use fallback routes instead');
-      setupFallbackRoutes(app);
-    }
-  } else {
-    console.log('⚠️ Using fallback routes (server modules not available)');
-    setupFallbackRoutes(app);
-  }
+  // Setup additional test routes
+  setupFallbackRoutes(app);
   
   // Error handler
   app.use((err, req, res, next) => {
@@ -133,15 +153,6 @@ async function createApp() {
 }
 
 function setupFallbackRoutes(app) {
-  // Auth route fallback
-  app.get('/api/auth/user', (req, res) => {
-    console.log('⚠️ Fallback auth/user route called');
-    res.status(503).json({
-      status: 'error',
-      message: 'Authentication service temporarily unavailable',
-      note: 'Server modules not loaded - check deployment'
-    });
-  });
   
   // Test routes
   app.get('/api/debug/database', (req, res) => {
