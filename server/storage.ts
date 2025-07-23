@@ -134,9 +134,9 @@ const initializeDatabase = () => {
   }
   
   try {
-    // Use postgres directly instead of neon
-    // Replace require with imported postgres
-    sql = postgres(process.env.DATABASE_URL);
+    // Use Neon serverless driver for Vercel compatibility
+    console.log('    - Using Neon serverless driver for production');
+    sql = neon(process.env.DATABASE_URL);
     db = drizzle(sql);
     return true;
   } catch (error) {
