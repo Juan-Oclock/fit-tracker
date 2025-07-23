@@ -8,21 +8,44 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Handle the OAuth callback
-        const { data, error } = await supabase.auth.getSession()
+        // Get the URL parameters
+        const urlParams = new URLSearchParams(window.location.search)
+        const code = urlParams.get('code')
         
-        if (error) {
-          console.error('Auth callback error:', error)
-          setLocation('/?error=auth_failed')
-          return
-        }
+        if (code) {
+          // Exchange the code for a session
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+          
+          if (error) {
+            console.error('Auth callback error:', error)
+            setLocation('/?error=auth_failed')
+            return
+          }
 
-        if (data.session) {
-          console.log('Authentication successful, redirecting to dashboard')
-          setLocation('/')
+          if (data.session) {
+            console.log('Authentication successful, redirecting to dashboard')
+            setLocation('/')
+          } else {
+            console.log('No session found, redirecting to landing')
+            setLocation('/')
+          }
         } else {
-          console.log('No session found, redirecting to landing')
-          setLocation('/')
+          // No code parameter, check if there's already a session
+          const { data, error } = await supabase.auth.getSession()
+          
+          if (error) {
+            console.error('Session check error:', error)
+            setLocation('/?error=session_check_failed')
+            return
+          }
+
+          if (data.session) {
+            console.log('Existing session found, redirecting to dashboard')
+            setLocation('/')
+          } else {
+            console.log('No session or code found, redirecting to landing')
+            setLocation('/')
+          }
         }
       } catch (error) {
         console.error('Unexpected error during auth callback:', error)

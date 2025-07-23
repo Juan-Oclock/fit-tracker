@@ -35,9 +35,6 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/auth/callback" component={AuthCallback} />
-      <Route path="/privacy-policy" component={PrivacyPolicy} />
-      <Route path="/terms" component={Terms} />
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
@@ -75,13 +72,20 @@ function App() {
       <ThemeProvider>
         <TooltipProvider>
           <NavigationGuardProvider>
-            <AuthenticatedLayout
-              isMobileMenuOpen={isMobileMenuOpen}
-              onMenuToggle={toggleMobileMenu}
-              onItemClick={closeMobileMenu}
-            >
-              <Router />
-            </AuthenticatedLayout>
+            <Switch>
+              <Route path="/auth/callback" component={AuthCallback} />
+              <Route path="/privacy-policy" component={PrivacyPolicy} />
+              <Route path="/terms" component={Terms} />
+              <Route>
+                <AuthenticatedLayout
+                  isMobileMenuOpen={isMobileMenuOpen}
+                  onMenuToggle={toggleMobileMenu}
+                  onItemClick={closeMobileMenu}
+                >
+                  <Router />
+                </AuthenticatedLayout>
+              </Route>
+            </Switch>
             <Toaster />
           </NavigationGuardProvider>
         </TooltipProvider>

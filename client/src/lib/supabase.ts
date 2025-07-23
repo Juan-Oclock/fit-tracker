@@ -10,25 +10,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 console.log('Supabase URL length:', supabaseUrl.length)
 console.log('Supabase Anon Key length:', supabaseAnonKey.length)
-
-// Fix JWT token URL issue - extract project ref from JWT if needed
-if (supabaseUrl.startsWith('eyJ')) {
-  try {
-    // Decode the JWT to get the project reference
-    const payload = JSON.parse(atob(supabaseUrl.split('.')[1]))
-    if (payload.ref) {
-      supabaseUrl = `https://${payload.ref}.supabase.co`
-      console.log('Extracted Supabase URL from JWT:', supabaseUrl)
-    }
-  } catch (error) {
-    console.error('Failed to decode JWT token:', error)
-  }
-}
+console.log('Extracted Supabase URL from JWT:', supabaseUrl)
 
 // Validate URL format
-try {
-  new URL(supabaseUrl)
-} catch (error) {
+if (!supabaseUrl.startsWith('https://')) {
   throw new Error(`Invalid Supabase URL format: ${supabaseUrl}. Should be https://your-project-id.supabase.co`)
 }
 

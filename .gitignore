@@ -51,3 +51,4 @@ replit.nix
 
 # Attached assets (user uploads)
 attached_assets/
+.vercel
