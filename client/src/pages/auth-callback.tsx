@@ -21,11 +21,22 @@ export default function AuthCallback() {
         const error_param = urlParams.get('error')
         const error_description = urlParams.get('error_description')
         
+        console.log('🔍 Complete callback URL:', window.location.href)
+        console.log('🔍 URL Search params:', window.location.search)
+        console.log('🔍 URL Hash:', window.location.hash)
         console.log('🔍 URL Parameters:')
         console.log('  - code:', code ? 'present' : 'null')
         console.log('  - access_token:', access_token ? 'present' : 'null')
         console.log('  - refresh_token:', refresh_token ? 'present' : 'null')
         console.log('  - error:', error_param)
+        
+        // Also check hash parameters (sometimes tokens are in hash)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const hash_access_token = hashParams.get('access_token')
+        const hash_refresh_token = hashParams.get('refresh_token')
+        console.log('🔍 Hash Parameters:')
+        console.log('  - hash access_token:', hash_access_token ? 'present' : 'null')
+        console.log('  - hash refresh_token:', hash_refresh_token ? 'present' : 'null')
         
         if (error_param) {
           console.error('❌ OAuth error from provider:', error_param, error_description)
@@ -33,14 +44,17 @@ export default function AuthCallback() {
           return
         }
         
-        // Handle PKCE flow with direct tokens
-        if (access_token && refresh_token) {
+        // Handle PKCE flow with direct tokens (check both query and hash)
+        const final_access_token = access_token || hash_access_token
+        const final_refresh_token = refresh_token || hash_refresh_token
+        
+        if (final_access_token && final_refresh_token) {
           console.log('🔄 PKCE flow detected - tokens received directly')
           
           // Set the session using the tokens
           const { data, error } = await supabase.auth.setSession({
-            access_token,
-            refresh_token
+            access_token: final_access_token,
+            refresh_token: final_refresh_token
           })
           
           console.log('📊 Session set result:')

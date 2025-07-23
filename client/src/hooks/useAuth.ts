@@ -47,7 +47,11 @@ export function useAuth() {
       ? `${import.meta.env.VITE_APP_URL}/auth/callback`
       : `${window.location.origin}/auth/callback`
     
-    console.log('Google OAuth redirect URL:', redirectUrl)
+    console.log('🚀 Starting Google OAuth...')
+    console.log('🔧 Environment variables:')
+    console.log('  - VITE_APP_URL:', import.meta.env.VITE_APP_URL)
+    console.log('  - VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL)
+    console.log('🎯 Redirect URL:', redirectUrl)
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -60,8 +64,13 @@ export function useAuth() {
       }
     })
     
+    console.log('📊 OAuth initiation result:')
+    console.log('  - data:', data)
+    console.log('  - error:', error)
+    console.log('  - url:', data?.url)
+    
     if (error) {
-      console.error('Google OAuth error:', error)
+      console.error('❌ Google OAuth error:', error)
     }
     return { data, error }
   }
