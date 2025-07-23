@@ -88,6 +88,65 @@ function setupEssentialRoutes(app) {
     res.json(updatedUser);
   });
   
+  // Workouts with exercises endpoint - essential for dashboard
+  app.get('/api/workouts-with-exercises', isAuthenticated, (req, res) => {
+    console.log('✅ Workouts with exercises endpoint called for user:', req.user.id);
+    
+    // Return empty array for now - this prevents the slice error
+    // In a full implementation, this would fetch from database
+    const workouts = [];
+    
+    console.log('  - Returning workouts array:', workouts.length, 'items');
+    res.json(workouts);
+  });
+  
+  // Exercises endpoint
+  app.get('/api/exercises', isAuthenticated, (req, res) => {
+    console.log('✅ Exercises endpoint called for user:', req.user.id);
+    
+    // Return empty array for now
+    const exercises = [];
+    
+    console.log('  - Returning exercises array:', exercises.length, 'items');
+    res.json(exercises);
+  });
+  
+  // Categories endpoint
+  app.get('/api/categories', isAuthenticated, (req, res) => {
+    console.log('✅ Categories endpoint called for user:', req.user.id);
+    
+    // Return basic categories
+    const categories = [
+      { id: 1, name: 'Strength', iconColor: '#FFD300' },
+      { id: 2, name: 'Cardio', iconColor: '#FF6B6B' },
+      { id: 3, name: 'Flexibility', iconColor: '#4ECDC4' }
+    ];
+    
+    console.log('  - Returning categories array:', categories.length, 'items');
+    res.json(categories);
+  });
+  
+  // Workout stats endpoint - essential for dashboard stats cards
+  app.get('/api/stats/workouts', isAuthenticated, (req, res) => {
+    console.log('✅ Workout stats endpoint called for user:', req.user.id);
+    
+    // Return basic stats structure
+    const stats = {
+      totalWorkouts: 0,
+      thisWeek: 0,
+      thisMonth: 0,
+      weeklyGoal: 3,
+      personalRecords: null,
+      dailyQuote: {
+        text: "Every workout is a step closer to your goals.",
+        author: "Fit Tracker"
+      }
+    };
+    
+    console.log('  - Returning workout stats:', stats);
+    res.json(stats);
+  });
+  
   console.log('✅ Essential authentication routes setup complete');
 }
 
