@@ -16,13 +16,16 @@ export default function AuthCallback() {
         // Get the URL parameters
         const urlParams = new URLSearchParams(window.location.search)
         const code = urlParams.get('code')
+        const access_token = urlParams.get('access_token')
+        const refresh_token = urlParams.get('refresh_token')
         const error_param = urlParams.get('error')
         const error_description = urlParams.get('error_description')
         
-        console.log('📋 URL Parameters:')
-        console.log('  - code:', code ? `${code.substring(0, 20)}...` : 'null')
+        console.log('🔍 URL Parameters:')
+        console.log('  - code:', code ? 'present' : 'null')
+        console.log('  - access_token:', access_token ? 'present' : 'null')
+        console.log('  - refresh_token:', refresh_token ? 'present' : 'null')
         console.log('  - error:', error_param)
-        console.log('  - error_description:', error_description)
         
         if (error_param) {
           console.error('❌ OAuth error from provider:', error_param, error_description)
@@ -30,8 +33,39 @@ export default function AuthCallback() {
           return
         }
         
-        if (code) {
-          console.log('🔄 Exchanging code for session...')
+        // Handle PKCE flow with direct tokens
+        if (access_token && refresh_token) {
+          console.log('🔄 PKCE flow detected - tokens received directly')
+          
+          // Set the session using the tokens
+          const { data, error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token
+          })
+          
+          console.log('📊 Session set result:')
+          console.log('  - data:', data)
+          console.log('  - session:', data?.session ? 'exists' : 'null')
+          console.log('  - user:', data?.user ? data.user.email : 'null')
+          console.log('  - error:', error)
+          
+          if (error) {
+            console.error('❌ Session set error:', error)
+            setLocation('/?error=auth_failed')
+            return
+          }
+
+          if (data.session) {
+            console.log('✅ Authentication successful, redirecting to dashboard')
+            setLocation('/')
+          } else {
+            console.log('⚠️ No session found after setting tokens, redirecting to landing')
+            setLocation('/')
+          }
+        }
+        // Handle traditional code exchange flow
+        else if (code) {
+          console.log('🔄 Code exchange flow detected')
           console.log('🔍 Code length:', code.length)
           console.log('🔍 Code preview:', code.substring(0, 20) + '...')
           
@@ -60,7 +94,7 @@ export default function AuthCallback() {
             setLocation('/')
           }
         } else {
-          console.log('🔍 No code parameter, checking existing session...')
+          console.log('🔍 No code or tokens, checking existing session...')
           // No code parameter, check if there's already a session
           const { data, error } = await supabase.auth.getSession()
           
