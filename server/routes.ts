@@ -626,8 +626,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.put("/api/goals/monthly", isAuthenticated, async (req, res) => {
+    console.log('🎯 PUT /api/goals/monthly called');
+    console.log('  - Request body:', req.body);
+    console.log('  - Request headers:', req.headers);
+    
     const user = (req as any).user;
+    console.log('  - User from auth:', user);
+    
     if (!user) {
+      console.log('  - No user found, returning 401');
       return res.status(401).json({ error: "Unauthorized" });
     }
 

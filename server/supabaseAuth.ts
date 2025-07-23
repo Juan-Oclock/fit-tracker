@@ -11,20 +11,29 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  console.log('🔐 Auth middleware called for:', req.method, req.path);
+  
   const authHeader = req.headers.authorization
+  console.log('  - Auth header present:', !!authHeader);
+  console.log('  - Auth header starts with Bearer:', authHeader?.startsWith('Bearer '));
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log('  - No valid auth header, returning 401');
     return res.status(401).json({ message: "Unauthorized" })
   }
 
   const token = authHeader.split(' ')[1]
+  console.log('  - Token length:', token?.length);
   
   try {
     // For development, we'll extract user info from the JWT token directly
     // In production, you'd verify this with Supabase's auth API
     const payload = JSON.parse(atob(token.split('.')[1]))
+    console.log('  - Token payload sub:', payload.sub);
+    console.log('  - Token payload email:', payload.email);
     
     if (!payload.sub) {
+      console.log('  - No sub in payload, returning 401');
       return res.status(401).json({ message: "Unauthorized" })
     }
 
@@ -35,6 +44,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       user_metadata: payload.user_metadata || {}
     }
     
+    console.log('  - Auth successful, user ID:', payload.sub);
     next()
   } catch (error) {
     console.error('Auth middleware error:', error)

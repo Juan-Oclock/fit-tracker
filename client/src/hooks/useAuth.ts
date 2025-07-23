@@ -23,23 +23,10 @@ export function useAuth() {
   }, [])
 
   const signInWithEmail = async (email: string, password: string) => {
-    console.log('📧 Starting email sign-in...')
-    console.log('🔧 Environment variables:')
-    console.log('  - VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL)
-    console.log('  - VITE_SUPABASE_ANON_KEY length:', import.meta.env.VITE_SUPABASE_ANON_KEY?.length)
-    console.log('  - Email:', email)
-    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
-    
-    console.log('📊 Email sign-in result:')
-    console.log('  - data:', data)
-    console.log('  - error:', error)
-    console.log('  - error message:', error?.message)
-    console.log('  - error status:', error?.status)
-    
     return { data, error }
   }
 
