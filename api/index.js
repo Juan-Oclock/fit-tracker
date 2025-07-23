@@ -238,7 +238,7 @@ function setupEssentialRoutes(app) {
     
     const statusInfo = {
       timestamp: new Date().toISOString(),
-      version: '2025-07-23-v2',
+      version: '2025-07-23-v3-neon-fix',
       environment: {
         NODE_ENV: process.env.NODE_ENV,
         DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
