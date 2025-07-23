@@ -1889,27 +1889,56 @@ async function ensureTablesExist() {
 let storageInstance: IStorage | null = null;
 
 const initStorage = async (): Promise<IStorage> => {
-  if (storageInstance) return storageInstance;
+  console.log('🔧 initStorage called');
+  
+  if (storageInstance) {
+    console.log('  - Using existing storage instance:', storageInstance.constructor.name);
+    return storageInstance;
+  }
+  
+  console.log('  - Environment check:');
+  console.log('    - DATABASE_URL exists:', !!process.env.DATABASE_URL);
+  console.log('    - DATABASE_URL starts with postgresql/postgres:', 
+    process.env.DATABASE_URL && 
+    (process.env.DATABASE_URL.startsWith('postgresql://') || 
+     process.env.DATABASE_URL.startsWith('postgres://')));
   
   if (process.env.DATABASE_URL && 
       (process.env.DATABASE_URL.startsWith('postgresql://') || 
        process.env.DATABASE_URL.startsWith('postgres://'))) {
+    console.log('  - Attempting PostgreSQL connection...');
     try {
+      console.log('    - Initializing database...');
       const dbInitialized = initializeDatabase();
+      console.log('    - Database initialized:', dbInitialized);
+      
       if (dbInitialized) {
+        console.log('    - Testing connection with SELECT 1...');
         // Test the connection first
         await sql`SELECT 1`;
+        console.log('    - Connection test successful');
+        
+        console.log('    - Ensuring tables exist...');
         await ensureTablesExist();
+        console.log('    - Tables verified');
+        
         storageInstance = new PostgresStorage();
-        console.log("Successfully connected to PostgreSQL database");
+        console.log('✅ Successfully connected to PostgreSQL database');
         return storageInstance;
+      } else {
+        console.log('    - Database initialization failed');
       }
     } catch (error) {
-      console.log("Failed to connect to PostgreSQL, falling back to memory storage:", error);
+      console.log('❌ Failed to connect to PostgreSQL, falling back to memory storage:');
+      console.log('    - Error type:', error.constructor.name);
+      console.log('    - Error message:', error.message);
+      console.log('    - Error stack:', error.stack);
     }
+  } else {
+    console.log('  - No valid DATABASE_URL found, using memory storage');
   }
   
-  console.log("Using memory storage");
+  console.log('⚠️ Using memory storage (fallback mode)');
   storageInstance = new MemStorage();
   return storageInstance;
 };

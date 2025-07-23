@@ -1,17 +1,8 @@
 import express from 'express';
 
-// Import database storage
-let getStorage;
-try {
-  // Dynamic import to handle potential module loading issues
-  const storageModule = await import('../server/storage.js');
-  getStorage = storageModule.getStorage;
-  console.log('✅ Database storage module loaded successfully');
-} catch (error) {
-  console.log('⚠️ Database storage module failed to load:', error.message);
-  console.log('   Will use fallback data for API responses');
-  getStorage = null;
-}
+// Storage will be loaded inside createApp function
+// Updated: 2025-07-23T15:45:00 - Force fresh deployment
+let getStorage = null;
 
 // Simple authentication middleware
 function isAuthenticated(req, res, next) {
@@ -134,6 +125,175 @@ function setupEssentialRoutes(app) {
     res.json(workouts);
   });
   
+  // Debug endpoint to check storage status
+  app.get('/api/debug/storage', async (req, res) => {
+    console.log('🔍 Debug storage endpoint called');
+    
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
+        DATABASE_URL_PREFIX: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 20) + '...' : 'NOT_SET',
+        CWD: process.cwd(),
+        NODE_VERSION: process.version
+      },
+      storage: {
+        getStorageAvailable: !!getStorage,
+        getStorageType: typeof getStorage
+      }
+    };
+    
+    if (getStorage) {
+      try {
+        console.log('  - Testing getStorage() call...');
+        const storage = await getStorage();
+        debugInfo.storage.storageInstanceType = storage.constructor.name;
+        debugInfo.storage.storageTestSuccess = true;
+        
+        console.log('  - Testing getExercises() call...');
+        const exercises = await storage.getExercises();
+        debugInfo.storage.exerciseCount = exercises?.length || 0;
+        debugInfo.storage.exerciseTestSuccess = true;
+        
+        if (exercises && exercises.length > 0) {
+          debugInfo.storage.firstExercise = {
+            id: exercises[0].id,
+            name: exercises[0].name,
+            category: exercises[0].category
+          };
+        }
+      } catch (error) {
+        debugInfo.storage.error = {
+          type: error.constructor.name,
+          message: error.message,
+          stack: error.stack
+        };
+      }
+    }
+    
+    console.log('  - Debug info:', JSON.stringify(debugInfo, null, 2));
+    res.json(debugInfo);
+  });
+  
+  // Database connection test endpoint
+  app.get('/api/debug/database', async (req, res) => {
+    console.log('🔍 Database connection test endpoint called');
+    
+    const testInfo = {
+      timestamp: new Date().toISOString(),
+      databaseUrl: {
+        exists: !!process.env.DATABASE_URL,
+        prefix: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 30) + '...' : 'NOT_SET',
+        isPostgres: process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres')
+      }
+    };
+    
+    if (process.env.DATABASE_URL) {
+      try {
+        // Try to import and test the database connection directly
+        console.log('  - Testing direct database connection...');
+        const { drizzle } = await import('drizzle-orm/neon-serverless');
+        const { neon } = await import('@neondatabase/serverless');
+        
+        const sql = neon(process.env.DATABASE_URL);
+        const db = drizzle(sql);
+        
+        // Test query
+        console.log('  - Executing test query...');
+        const result = await sql`SELECT 1 as test`;
+        
+        testInfo.connectionTest = {
+          success: true,
+          result: result,
+          message: 'Database connection successful'
+        };
+        
+        console.log('  - Database connection test successful');
+      } catch (error) {
+        testInfo.connectionTest = {
+          success: false,
+          error: {
+            type: error.constructor.name,
+            message: error.message,
+            stack: error.stack
+          }
+        };
+        console.log('  - Database connection test failed:', error.message);
+      }
+    } else {
+      testInfo.connectionTest = {
+        success: false,
+        message: 'DATABASE_URL not configured'
+      };
+    }
+    
+    console.log('  - Test info:', JSON.stringify(testInfo, null, 2));
+    res.json(testInfo);
+  });
+  
+  // New debug endpoint with different name to bypass caching
+  app.get('/api/debug/status', async (req, res) => {
+    console.log('🔍 Status debug endpoint called - bypassing cache');
+    
+    const statusInfo = {
+      timestamp: new Date().toISOString(),
+      version: '2025-07-23-v2',
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        DATABASE_URL_EXISTS: !!process.env.DATABASE_URL,
+        DATABASE_URL_PREFIX: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 25) + '...' : 'NOT_SET',
+        CWD: process.cwd(),
+        NODE_VERSION: process.version
+      },
+      storage: {
+        getStorageAvailable: !!getStorage,
+        getStorageType: typeof getStorage
+      }
+    };
+    
+    if (getStorage) {
+      try {
+        console.log('  - Testing getStorage() call...');
+        const storage = await getStorage();
+        statusInfo.storage.storageInstanceType = storage.constructor.name;
+        statusInfo.storage.storageTestSuccess = true;
+        
+        console.log('  - Testing getExercises() call...');
+        const exercises = await storage.getExercises();
+        statusInfo.storage.exerciseCount = exercises?.length || 0;
+        statusInfo.storage.exerciseTestSuccess = true;
+        
+        if (exercises && exercises.length > 0) {
+          statusInfo.storage.firstExercise = {
+            id: exercises[0].id,
+            name: exercises[0].name,
+            category: exercises[0].category
+          };
+        }
+        
+        // Test database connection directly
+        if (storage.constructor.name === 'InMemoryStorage') {
+          statusInfo.storage.usingFallback = true;
+          statusInfo.storage.reason = 'Database connection failed, using in-memory storage';
+        } else {
+          statusInfo.storage.usingFallback = false;
+          statusInfo.storage.reason = 'Connected to database successfully';
+        }
+        
+      } catch (error) {
+        statusInfo.storage.error = {
+          type: error.constructor.name,
+          message: error.message,
+          stack: error.stack
+        };
+      }
+    }
+    
+    console.log('  - Status info:', JSON.stringify(statusInfo, null, 2));
+    res.json(statusInfo);
+  });
+  
   // Workouts with exercises endpoint - essential for dashboard
   app.get('/api/workouts-with-exercises', isAuthenticated, (req, res) => {
     console.log('✅ Workouts with exercises endpoint called for user:', req.user.id);
@@ -148,21 +308,40 @@ function setupEssentialRoutes(app) {
   
   // Exercises endpoint
   app.get('/api/exercises', isAuthenticated, async (req, res) => {
-    console.log('✅ Exercises endpoint called for user:', req.user.id);
+    console.log('🏋️ Exercises endpoint called for user:', req.user.id);
+    console.log('  - Request timestamp:', new Date().toISOString());
+    console.log('  - Environment NODE_ENV:', process.env.NODE_ENV);
+    console.log('  - getStorage function available:', !!getStorage);
     
     try {
       if (getStorage) {
-        console.log('  - Fetching exercises from database...');
+        console.log('  - Calling getStorage()...');
         const storage = await getStorage();
+        console.log('  - Storage instance type:', storage.constructor.name);
+        
+        console.log('  - Calling storage.getExercises()...');
         const exercises = await storage.getExercises();
-        console.log('  - Successfully fetched', exercises.length, 'exercises from database');
-        res.json(exercises);
+        console.log('  - Raw exercises result type:', typeof exercises);
+        console.log('  - Raw exercises is array:', Array.isArray(exercises));
+        console.log('  - Successfully fetched', exercises?.length || 0, 'exercises from database');
+        
+        if (exercises && exercises.length > 0) {
+          console.log('  - First exercise:', JSON.stringify(exercises[0], null, 2));
+        } else {
+          console.log('  - No exercises found in database');
+        }
+        
+        res.json(exercises || []);
       } else {
-        console.log('  - Database not available, returning empty array');
+        console.log('  - ❌ getStorage function not available, returning empty array');
+        console.log('  - This indicates the storage module failed to load');
         res.json([]);
       }
     } catch (error) {
-      console.error('  - Error fetching exercises:', error);
+      console.error('  - ❌ Error fetching exercises:');
+      console.error('    - Error type:', error.constructor.name);
+      console.error('    - Error message:', error.message);
+      console.error('    - Error stack:', error.stack);
       console.log('  - Falling back to empty array');
       res.json([]);
     }
@@ -353,6 +532,32 @@ async function createApp() {
   
   app = express();
   
+  // Load storage module inside the function
+  if (!getStorage) {
+    console.log('📦 Attempting to load database storage module...');
+    console.log('  - Current working directory:', process.cwd());
+    console.log('  - Node.js version:', process.version);
+    console.log('  - Environment:', process.env.NODE_ENV);
+
+    try {
+      console.log('  - Importing ../server/storage.js...');
+      const storageModule = await import('../server/storage.js');
+      console.log('  - Storage module imported successfully');
+      console.log('  - Available exports:', Object.keys(storageModule));
+      
+      getStorage = storageModule.getStorage;
+      console.log('  - getStorage function type:', typeof getStorage);
+      console.log('✅ Database storage module loaded successfully');
+    } catch (error) {
+      console.log('❌ Database storage module failed to load:');
+      console.log('  - Error type:', error.constructor.name);
+      console.log('  - Error message:', error.message);
+      console.log('  - Error stack:', error.stack);
+      console.log('  - Will use fallback data for API responses');
+      getStorage = null;
+    }
+  }
+  
   // Basic middleware
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: false }));
@@ -387,9 +592,6 @@ async function createApp() {
   // Setup essential authentication routes
   setupEssentialRoutes(app);
   
-  // Setup additional test routes
-  setupFallbackRoutes(app);
-  
   // Error handler
   app.use((err, req, res, next) => {
     console.error('❌ Server error:', err);
@@ -409,50 +611,7 @@ async function createApp() {
   return app;
 }
 
-function setupFallbackRoutes(app) {
-  
-  // Test routes
-  app.get('/api/debug/database', (req, res) => {
-    res.json({
-      status: 'success',
-      message: 'Serverless function working (fallback mode)',
-      timestamp: new Date().toISOString(),
-      serverless: true,
-      fallbackMode: true
-    });
-  });
-  
-  app.get('/api/exercises', (req, res) => {
-    res.json({
-      status: 'success',
-      message: 'Exercises endpoint (fallback mode)',
-      data: [],
-      note: 'Database not available - using fallback'
-    });
-  });
-  
-  // Test PUT endpoint for monthly goals
-  app.put('/api/goals/monthly', (req, res) => {
-    console.log('✅ PUT /api/goals/monthly reached (fallback mode)');
-    console.log('Request body:', req.body);
-    
-    res.json({
-      status: 'success',
-      message: 'PUT /api/goals/monthly endpoint working (fallback mode)!',
-      receivedData: req.body,
-      timestamp: new Date().toISOString()
-    });
-  });
-  
-  // Catch-all for other API routes
-  app.all('/api/*', (req, res) => {
-    res.json({
-      status: 'success',
-      message: `${req.method} ${req.url} endpoint reached (fallback mode)`,
-      note: 'Endpoint exists but full functionality not available'
-    });
-  });
-}
+
 
 // Serverless function handler
 export default async function handler(req, res) {
