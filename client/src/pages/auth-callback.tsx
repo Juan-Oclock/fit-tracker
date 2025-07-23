@@ -32,16 +32,22 @@ export default function AuthCallback() {
         
         if (code) {
           console.log('🔄 Exchanging code for session...')
-          // Exchange the code for a session
+          console.log('🔍 Code length:', code.length)
+          console.log('🔍 Code preview:', code.substring(0, 20) + '...')
+          
           const { data, error } = await supabase.auth.exchangeCodeForSession(code)
           
           console.log('📊 Exchange result:')
+          console.log('  - data:', data)
           console.log('  - session:', data?.session ? 'exists' : 'null')
           console.log('  - user:', data?.user ? data.user.email : 'null')
           console.log('  - error:', error)
           
           if (error) {
-            console.error('❌ Auth callback error:', error)
+            console.error('❌ Exchange error details:')
+            console.error('  - message:', error.message)
+            console.error('  - status:', error.status)
+            console.error('  - details:', error)
             setLocation('/?error=auth_failed')
             return
           }
