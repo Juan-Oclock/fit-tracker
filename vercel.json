@@ -27,6 +27,18 @@
       "dest": "/dist/public/$1"
     },
     {
+      "src": "/auth/callback",
+      "dest": "/dist/public/index.html"
+    },
+    {
+      "src": "/privacy-policy",
+      "dest": "/dist/public/index.html"
+    },
+    {
+      "src": "/terms",
+      "dest": "/dist/public/index.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/dist/public/index.html"
     }
