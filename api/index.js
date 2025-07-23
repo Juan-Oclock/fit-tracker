@@ -68,7 +68,7 @@ function setupEssentialRoutes(app) {
     res.json(user);
   });
   
-  // Goal management route
+  // Goal management routes
   app.put('/api/user/goal', isAuthenticated, (req, res) => {
     console.log('✅ User goal update for user:', req.user.id);
     console.log('  - Request body:', req.body);
@@ -86,6 +86,39 @@ function setupEssentialRoutes(app) {
     };
     
     res.json(updatedUser);
+  });
+  
+  // Monthly goal data endpoint
+  app.get('/api/goals/monthly', isAuthenticated, (req, res) => {
+    console.log('✅ Monthly goal data endpoint called for user:', req.user.id);
+    console.log('  - Query params:', req.query);
+    
+    const { month, year } = req.query;
+    
+    // Return basic monthly goal structure
+    const monthlyGoalData = {
+      month: parseInt(month) || new Date().getMonth() + 1,
+      year: parseInt(year) || new Date().getFullYear(),
+      targetWorkouts: 12, // Default target
+      completedWorkouts: 0,
+      workoutDates: [],
+      beforePhoto: null,
+      progressPhotos: []
+    };
+    
+    console.log('  - Returning monthly goal data:', monthlyGoalData);
+    res.json(monthlyGoalData);
+  });
+  
+  // Workouts endpoint - essential for goal card and other components
+  app.get('/api/workouts', isAuthenticated, (req, res) => {
+    console.log('✅ Workouts endpoint called for user:', req.user.id);
+    
+    // Return empty array for now - this prevents filter errors
+    const workouts = [];
+    
+    console.log('  - Returning workouts array:', workouts.length, 'items');
+    res.json(workouts);
   });
   
   // Workouts with exercises endpoint - essential for dashboard
