@@ -35,10 +35,9 @@ import {
   type MuscleGroup,
   type InsertMuscleGroup
 } from "@shared/schema";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { migrate } from "drizzle-orm/neon-serverless/migrator";
 import { neon } from "@neondatabase/serverless";
-import postgres from "postgres";
 import { eq, and, gte, lte, lt, ilike, sql as drizzleSql, desc, countDistinct } from "drizzle-orm";
 
 export interface IStorage {
