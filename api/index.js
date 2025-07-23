@@ -180,6 +180,66 @@ function setupEssentialRoutes(app) {
     res.json(stats);
   });
   
+  // Muscle groups endpoint
+  app.get('/api/muscle-groups', isAuthenticated, (req, res) => {
+    console.log('✅ Muscle groups endpoint called for user:', req.user.id);
+    
+    // Return basic muscle groups
+    const muscleGroups = [
+      { id: 1, name: 'Chest', color: '#FF6B6B' },
+      { id: 2, name: 'Back', color: '#4ECDC4' },
+      { id: 3, name: 'Legs', color: '#45B7D1' },
+      { id: 4, name: 'Arms', color: '#96CEB4' },
+      { id: 5, name: 'Shoulders', color: '#FFEAA7' },
+      { id: 6, name: 'Core', color: '#DDA0DD' }
+    ];
+    
+    console.log('  - Returning muscle groups array:', muscleGroups.length, 'items');
+    res.json(muscleGroups);
+  });
+  
+  // Quotes endpoints
+  app.get('/api/quotes', isAuthenticated, (req, res) => {
+    console.log('✅ Quotes endpoint called for user:', req.user.id);
+    
+    // Return empty array for now
+    const quotes = [];
+    
+    console.log('  - Returning quotes array:', quotes.length, 'items');
+    res.json(quotes);
+  });
+  
+  app.get('/api/quotes/daily', isAuthenticated, (req, res) => {
+    console.log('✅ Daily quote endpoint called for user:', req.user.id);
+    
+    // Return a motivational quote
+    const dailyQuote = {
+      text: "The only bad workout is the one that didn't happen.",
+      author: "Unknown",
+      date: new Date().toISOString().split('T')[0]
+    };
+    
+    console.log('  - Returning daily quote:', dailyQuote);
+    res.json(dailyQuote);
+  });
+  
+  // Exercise stats endpoint
+  app.get('/api/stats/exercises', isAuthenticated, (req, res) => {
+    console.log('✅ Exercise stats endpoint called for user:', req.user.id);
+    
+    // Return basic exercise stats
+    const exerciseStats = {
+      totalExercises: 0,
+      favoriteExercise: null,
+      totalSets: 0,
+      totalReps: 0,
+      totalWeight: 0
+    };
+    
+    console.log('  - Returning exercise stats:', exerciseStats);
+    res.json(exerciseStats);
+  });
+  
   console.log('✅ Essential authentication routes setup complete');
 }
 
