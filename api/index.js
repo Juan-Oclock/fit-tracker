@@ -1,12 +1,11 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import express, { type Express } from 'express';
-import { registerRoutes } from '../server/routes';
-import { getStorage } from '../server/storage';
-import { seedCategories } from '../server/seed-categories';
-import { seedMuscleGroups } from '../server/seed-muscle-groups';
+import express from 'express';
+import { registerRoutes } from '../server/routes.js';
+import { getStorage } from '../server/storage.js';
+import { seedCategories } from '../server/seed-categories.js';
+import { seedMuscleGroups } from '../server/seed-muscle-groups.js';
 
 // Initialize storage and register routes
-let app: Express | null = null;
+let app = null;
 let initialized = false;
 
 async function initializeApp() {
@@ -42,7 +41,7 @@ async function initializeApp() {
     await registerRoutes(app);
 
     // Error handler
-    app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    app.use((err, req, res, _next) => {
       if (res.headersSent) {
         return;
       }
@@ -61,9 +60,9 @@ async function initializeApp() {
 }
 
 // Export the serverless function
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req, res) {
   const expressApp = await initializeApp();
   
   // Use the express app to handle the request
-  return expressApp(req as any, res as any);
+  return expressApp(req, res);
 }
