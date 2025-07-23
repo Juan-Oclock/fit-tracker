@@ -10,6 +10,16 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false }));
 
+// Debug middleware to log all PUT requests
+app.use((req, res, next) => {
+  if (req.method === 'PUT') {
+    console.log('🔧 PUT request received:', req.path);
+    console.log('  - Full URL:', req.url);
+    console.log('  - Headers:', req.headers);
+  }
+  next();
+});
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
