@@ -1,5 +1,18 @@
 import express from 'express';
 
+// Import database storage
+let getStorage;
+try {
+  // Dynamic import to handle potential module loading issues
+  const storageModule = await import('../server/storage.js');
+  getStorage = storageModule.getStorage;
+  console.log('✅ Database storage module loaded successfully');
+} catch (error) {
+  console.log('⚠️ Database storage module failed to load:', error.message);
+  console.log('   Will use fallback data for API responses');
+  getStorage = null;
+}
+
 // Simple authentication middleware
 function isAuthenticated(req, res, next) {
   console.log('🔐 Auth middleware called for:', req.method, req.path);
@@ -134,29 +147,57 @@ function setupEssentialRoutes(app) {
   });
   
   // Exercises endpoint
-  app.get('/api/exercises', isAuthenticated, (req, res) => {
+  app.get('/api/exercises', isAuthenticated, async (req, res) => {
     console.log('✅ Exercises endpoint called for user:', req.user.id);
     
-    // Return empty array for now
-    const exercises = [];
-    
-    console.log('  - Returning exercises array:', exercises.length, 'items');
-    res.json(exercises);
+    try {
+      if (getStorage) {
+        console.log('  - Fetching exercises from database...');
+        const storage = await getStorage();
+        const exercises = await storage.getExercises();
+        console.log('  - Successfully fetched', exercises.length, 'exercises from database');
+        res.json(exercises);
+      } else {
+        console.log('  - Database not available, returning empty array');
+        res.json([]);
+      }
+    } catch (error) {
+      console.error('  - Error fetching exercises:', error);
+      console.log('  - Falling back to empty array');
+      res.json([]);
+    }
   });
   
   // Categories endpoint
-  app.get('/api/categories', isAuthenticated, (req, res) => {
+  app.get('/api/categories', isAuthenticated, async (req, res) => {
     console.log('✅ Categories endpoint called for user:', req.user.id);
     
-    // Return basic categories
-    const categories = [
-      { id: 1, name: 'Strength', iconColor: '#FFD300' },
-      { id: 2, name: 'Cardio', iconColor: '#FF6B6B' },
-      { id: 3, name: 'Flexibility', iconColor: '#4ECDC4' }
-    ];
-    
-    console.log('  - Returning categories array:', categories.length, 'items');
-    res.json(categories);
+    try {
+      if (getStorage) {
+        console.log('  - Fetching categories from database...');
+        const storage = await getStorage();
+        const categories = await storage.getCategories();
+        console.log('  - Successfully fetched', categories.length, 'categories from database');
+        res.json(categories);
+      } else {
+        console.log('  - Database not available, returning fallback categories');
+        const fallbackCategories = [
+          { id: 1, name: 'Strength', iconColor: '#FFD300' },
+          { id: 2, name: 'Cardio', iconColor: '#FF6B6B' },
+          { id: 3, name: 'Flexibility', iconColor: '#4ECDC4' }
+        ];
+        res.json(fallbackCategories);
+      }
+    } catch (error) {
+      console.error('  - Error fetching categories:', error);
+      console.log('  - Falling back to default categories');
+      const fallbackCategories = [
+        { id: 1, name: 'Strength', iconColor: '#FFD300' },
+        { id: 2, name: 'Cardio', iconColor: '#FF6B6B' },
+        { id: 3, name: 'Flexibility', iconColor: '#4ECDC4' }
+      ];
+      res.json(fallbackCategories);
+    }
   });
   
   // Workout stats endpoint - essential for dashboard stats cards
@@ -181,46 +222,110 @@ function setupEssentialRoutes(app) {
   });
   
   // Muscle groups endpoint
-  app.get('/api/muscle-groups', isAuthenticated, (req, res) => {
+  app.get('/api/muscle-groups', isAuthenticated, async (req, res) => {
     console.log('✅ Muscle groups endpoint called for user:', req.user.id);
     
-    // Return basic muscle groups
-    const muscleGroups = [
-      { id: 1, name: 'Chest', color: '#FF6B6B' },
-      { id: 2, name: 'Back', color: '#4ECDC4' },
-      { id: 3, name: 'Legs', color: '#45B7D1' },
-      { id: 4, name: 'Arms', color: '#96CEB4' },
-      { id: 5, name: 'Shoulders', color: '#FFEAA7' },
-      { id: 6, name: 'Core', color: '#DDA0DD' }
-    ];
-    
-    console.log('  - Returning muscle groups array:', muscleGroups.length, 'items');
-    res.json(muscleGroups);
+    try {
+      if (getStorage) {
+        console.log('  - Fetching muscle groups from database...');
+        const storage = await getStorage();
+        const muscleGroups = await storage.getMuscleGroups();
+        console.log('  - Successfully fetched', muscleGroups.length, 'muscle groups from database');
+        res.json(muscleGroups);
+      } else {
+        console.log('  - Database not available, returning fallback muscle groups');
+        const fallbackMuscleGroups = [
+          { id: 1, name: 'Chest', color: '#FF6B6B' },
+          { id: 2, name: 'Back', color: '#4ECDC4' },
+          { id: 3, name: 'Legs', color: '#45B7D1' },
+          { id: 4, name: 'Arms', color: '#96CEB4' },
+          { id: 5, name: 'Shoulders', color: '#FFEAA7' },
+          { id: 6, name: 'Core', color: '#DDA0DD' }
+        ];
+        res.json(fallbackMuscleGroups);
+      }
+    } catch (error) {
+      console.error('  - Error fetching muscle groups:', error);
+      console.log('  - Falling back to default muscle groups');
+      const fallbackMuscleGroups = [
+        { id: 1, name: 'Chest', color: '#FF6B6B' },
+        { id: 2, name: 'Back', color: '#4ECDC4' },
+        { id: 3, name: 'Legs', color: '#45B7D1' },
+        { id: 4, name: 'Arms', color: '#96CEB4' },
+        { id: 5, name: 'Shoulders', color: '#FFEAA7' },
+        { id: 6, name: 'Core', color: '#DDA0DD' }
+      ];
+      res.json(fallbackMuscleGroups);
+    }
   });
   
   // Quotes endpoints
-  app.get('/api/quotes', isAuthenticated, (req, res) => {
+  app.get('/api/quotes', isAuthenticated, async (req, res) => {
     console.log('✅ Quotes endpoint called for user:', req.user.id);
     
-    // Return empty array for now
-    const quotes = [];
-    
-    console.log('  - Returning quotes array:', quotes.length, 'items');
-    res.json(quotes);
+    try {
+      if (getStorage) {
+        console.log('  - Fetching quotes from database...');
+        const storage = await getStorage();
+        const quotes = await storage.getQuotes();
+        console.log('  - Successfully fetched', quotes.length, 'quotes from database');
+        res.json(quotes);
+      } else {
+        console.log('  - Database not available, returning empty quotes array');
+        res.json([]);
+      }
+    } catch (error) {
+      console.error('  - Error fetching quotes:', error);
+      res.json([]);
+    }
   });
   
-  app.get('/api/quotes/daily', isAuthenticated, (req, res) => {
+  app.get('/api/quotes/daily', isAuthenticated, async (req, res) => {
     console.log('✅ Daily quote endpoint called for user:', req.user.id);
     
-    // Return a motivational quote
-    const dailyQuote = {
-      text: "The only bad workout is the one that didn't happen.",
-      author: "Unknown",
-      date: new Date().toISOString().split('T')[0]
-    };
-    
-    console.log('  - Returning daily quote:', dailyQuote);
-    res.json(dailyQuote);
+    try {
+      if (getStorage) {
+        console.log('  - Fetching daily quote from database...');
+        const storage = await getStorage();
+        const quotes = await storage.getQuotes();
+        
+        if (quotes && quotes.length > 0) {
+          // Get a "daily" quote by using date as seed for consistent daily quote
+          const today = new Date().toISOString().split('T')[0];
+          const seed = today.split('-').reduce((acc, val) => acc + parseInt(val), 0);
+          const dailyQuote = quotes[seed % quotes.length];
+          console.log('  - Returning daily quote from database:', dailyQuote.text);
+          res.json(dailyQuote);
+        } else {
+          // Fallback quote
+          const fallbackQuote = {
+            id: 1,
+            text: "The only bad workout is the one that didn't happen.",
+            author: "Unknown",
+            date: new Date().toISOString().split('T')[0]
+          };
+          res.json(fallbackQuote);
+        }
+      } else {
+        console.log('  - Database not available, returning fallback daily quote');
+        const fallbackQuote = {
+          id: 1,
+          text: "The only bad workout is the one that didn't happen.",
+          author: "Unknown",
+          date: new Date().toISOString().split('T')[0]
+        };
+        res.json(fallbackQuote);
+      }
+    } catch (error) {
+      console.error('  - Error fetching daily quote:', error);
+      const fallbackQuote = {
+        id: 1,
+        text: "The only bad workout is the one that didn't happen.",
+        author: "Unknown",
+        date: new Date().toISOString().split('T')[0]
+      };
+      res.json(fallbackQuote);
+    }
   });
   
   // Exercise stats endpoint
