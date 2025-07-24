@@ -20,6 +20,21 @@ if (!fs.existsSync('dist/public')) {
 // Copy shared directory to dist
 fs.cpSync('shared', 'dist/shared', { recursive: true });
 
+// Copy server seed files to dist/server for direct access
+const seedFiles = [
+  'seed-exercises.ts',
+  'seed-categories.ts',
+  'seed-muscle-groups.ts',
+  'seed-quotes.ts'
+];
+
+seedFiles.forEach(file => {
+  if (fs.existsSync(`server/${file}`)) {
+    fs.copyFileSync(`server/${file}`, `dist/server/${file}`);
+    console.log(`Copied ${file} to dist/server`);
+  }
+});
+
 // Copy migrations directory to dist
 if (fs.existsSync('migrations')) {
   fs.cpSync('migrations', 'dist/migrations', { recursive: true });
@@ -56,18 +71,5 @@ try {
   process.exit(1);
 }
 
-// Add this at the end of the file, before the console.log('Build completed successfully!');
-
-// Pre-seed database during build if possible
-console.log('Attempting to pre-seed database...');
-try {
-  execSync('node --loader ts-node/esm server/seed-with-env.ts', { 
-    stdio: 'inherit',
-    env: { ...process.env, NODE_ENV: 'production' }
-  });
-  console.log('Database pre-seeding completed');
-} catch (error) {
-  console.error('Database pre-seeding failed, will be done at runtime:', error);
-}
-
+// Skip pre-seeding during build - it will be done at runtime in a controlled way
 console.log('Build completed successfully!');

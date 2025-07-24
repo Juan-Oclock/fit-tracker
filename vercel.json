@@ -17,6 +17,12 @@
       "maxDuration": 30
     }
   },
+  "crons": [
+    {
+      "path": "/api/health",
+      "schedule": "*/5 * * * *"
+    }
+  ],
   "env": {
     "NODE_ENV": "production"
   }

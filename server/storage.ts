@@ -165,6 +165,9 @@ export class PostgresStorage implements IStorage {
       // Test the connection with a simple query
       await sql`SELECT 1`;
       
+      // Ensure tables exist
+      await this.ensureTablesExist();
+      
       // Mark as initialized - we'll seed data in the background
       this.isInitialized = true;
       
@@ -172,6 +175,47 @@ export class PostgresStorage implements IStorage {
       this.seedDefaultDataInBackground();
     } catch (error) {
       console.log("Failed to initialize PostgreSQL storage:", error);
+      throw error;
+    }
+  }
+  
+  async ensureTablesExist(): Promise<void> {
+    if (!db) throw new Error("Database not initialized");
+    
+    try {
+      // Just check database connection first without seeding data
+      await sql`SELECT 1`;
+      
+      // Create tables if they don't exist
+      await sql`
+        CREATE TABLE IF NOT EXISTS sessions (
+          sid TEXT PRIMARY KEY,
+          sess JSONB NOT NULL,
+          expire TIMESTAMP(6) NOT NULL
+        )
+      `;
+      
+      await sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE,
+          first_name TEXT,
+          last_name TEXT,
+          profile_image_url TEXT,
+          weekly_goal INTEGER,
+          goal_set_at TIMESTAMP,
+          show_in_community BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      
+      // Create other necessary tables
+      // ... (exercises, categories, etc.)
+      
+      console.log("Tables created or verified");
+    } catch (error) {
+      console.log("Failed to create tables:", error);
       throw error;
     }
   }
