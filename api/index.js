@@ -1,5 +1,5 @@
-const express = require('express');
-const serverless = require('serverless-http');
+import express from 'express';
+import serverless from 'serverless-http';
 
 const app = express();
 
@@ -24,7 +24,7 @@ router.all('*', (req, res) => {
     message: 'Request received',
     path: req.path,
     method: req.method,
-    headers: req.headers
+    headers: req.headers,
   });
 });
 
@@ -36,5 +36,5 @@ app.use((err, req, res, next) => {
 
 app.use('/.netlify/functions/index', router);
 
-// Export the handler for Netlify
-module.exports.handler = serverless(app);
+// Export the handler for Netlify (ESM style)
+export const handler = serverless(app);
