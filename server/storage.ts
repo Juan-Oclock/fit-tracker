@@ -35,9 +35,9 @@ import {
   type MuscleGroup,
   type InsertMuscleGroup
 } from "@shared/schema";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { migrate } from "drizzle-orm/neon-serverless/migrator";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
 import { eq, and, gte, lte, lt, ilike, sql as drizzleSql, desc, countDistinct } from "drizzle-orm";
 
 export interface IStorage {
@@ -133,9 +133,9 @@ const initializeDatabase = () => {
   }
   
   try {
-    // Use Neon serverless driver for Vercel compatibility
-    console.log('    - Using Neon serverless driver for production');
-    sql = neon(process.env.DATABASE_URL);
+    // Use postgres-js driver for Supabase compatibility
+    console.log('    - Using postgres-js driver for Supabase');
+    sql = postgres(process.env.DATABASE_URL, { ssl: 'require' });
     db = drizzle(sql);
     return true;
   } catch (error) {

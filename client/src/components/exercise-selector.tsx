@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Exercise } from "@shared/schema";
 
@@ -60,7 +60,8 @@ export function ExerciseSelector({
     }
   };
 
-  const handleExerciseClick = (exerciseId: number) => {
+  const handleExerciseClick = (exerciseId: number, event: React.MouseEvent) => {
+    event.stopPropagation();
     onExerciseSelect(exerciseId);
     setSearchTerm("");
     setIsOpen(false);
@@ -85,6 +86,14 @@ export function ExerciseSelector({
             }
           }}
           onFocus={() => !disabled && setIsOpen(true)}
+          onBlur={(e) => {
+            // Delay closing to allow clicks on dropdown items
+            setTimeout(() => {
+              if (!e.currentTarget.contains(document.activeElement)) {
+                setIsOpen(false);
+              }
+            }, 150);
+          }}
           className={`pl-10 pr-10 ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
           disabled={disabled}
         />
@@ -102,7 +111,7 @@ export function ExerciseSelector({
       </div>
 
       {isOpen && !disabled && (
-        <Card className="absolute top-full left-0 right-0 z-50 mt-1 max-h-80 shadow-lg border">
+        <Card className="absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto z-[9999] bg-background border shadow-lg">
           <CardContent className="p-0">
             <ScrollArea className="h-full max-h-80">
               {filteredExercises.length === 0 ? (
@@ -117,7 +126,7 @@ export function ExerciseSelector({
                     return (
                       <div
                         key={exercise.id}
-                        onClick={() => !isSelected && handleExerciseClick(exercise.id)}
+                        onClick={(e) => !isSelected && handleExerciseClick(exercise.id, e)}
                         className={`p-3 rounded-md cursor-pointer transition-colors ${
                           isSelected 
                             ? "bg-green-50 dark:bg-green-900/20 cursor-not-allowed" 
@@ -177,3 +186,4 @@ export function ExerciseSelector({
     </div>
   );
 }
+// The file should end here. Remove everything below this line.
