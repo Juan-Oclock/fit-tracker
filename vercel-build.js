@@ -56,4 +56,18 @@ try {
   process.exit(1);
 }
 
+// Add this at the end of the file, before the console.log('Build completed successfully!');
+
+// Pre-seed database during build if possible
+console.log('Attempting to pre-seed database...');
+try {
+  execSync('node --loader ts-node/esm server/seed-with-env.ts', { 
+    stdio: 'inherit',
+    env: { ...process.env, NODE_ENV: 'production' }
+  });
+  console.log('Database pre-seeding completed');
+} catch (error) {
+  console.error('Database pre-seeding failed, will be done at runtime:', error);
+}
+
 console.log('Build completed successfully!');
