@@ -1,6 +1,6 @@
 import express from 'express';
 import serverless from 'serverless-http';
-import { registerRoutes } from '../server/routes.js';
+import { registerRoutes } from '../dist/server/routes.js';
 
 const app = express();
 app.use(express.json());
