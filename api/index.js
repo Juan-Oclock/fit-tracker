@@ -41,9 +41,9 @@ app.use(async (req, res, next) => {
         dbInitializationPromise = initializeDatabase();
       }
       
-      // Set a timeout for database initialization
+      // Set a timeout for database initialization - increased to 15 seconds
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database initialization timeout')), 8000);
+        setTimeout(() => reject(new Error('Database initialization timeout')), 15000);
       });
       
       // Race between initialization and timeout

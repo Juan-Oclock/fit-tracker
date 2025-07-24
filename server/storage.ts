@@ -165,14 +165,13 @@ export class PostgresStorage implements IStorage {
       // Test the connection with a simple query
       await sql`SELECT 1`;
       
-      // Ensure tables exist
+      // Ensure tables exist - this is critical
       await this.ensureTablesExist();
       
-      // Mark as initialized - we'll seed data in the background
+      // Mark as initialized - we'll seed data separately
       this.isInitialized = true;
       
-      // Start seeding in the background without waiting
-      this.seedDefaultDataInBackground();
+      // Don't start seeding here - it will be done separately
     } catch (error) {
       console.log("Failed to initialize PostgreSQL storage:", error);
       throw error;

@@ -31,7 +31,10 @@ const seedFiles = [
 seedFiles.forEach(file => {
   if (fs.existsSync(`server/${file}`)) {
     fs.copyFileSync(`server/${file}`, `dist/server/${file}`);
-    console.log(`Copied ${file} to dist/server`);
+    // Also create a .js version for ESM imports
+    const jsContent = `export * from './${file.replace('.ts', '.js')}';`;
+    fs.writeFileSync(`dist/server/${file.replace('.ts', '.js')}`, jsContent);
+    console.log(`Copied and created JS module for ${file}`);  
   }
 });
 
@@ -72,4 +75,12 @@ try {
 }
 
 // Skip pre-seeding during build - it will be done at runtime in a controlled way
+console.log('Attempting to pre-seed database...');
+try {
+  execSync('node --loader ts-node/esm server/seed-with-env.ts', { stdio: 'inherit' });
+  console.log('Database pre-seeding completed successfully!');
+} catch (error) {
+  console.log('Database pre-seeding failed, will be done at runtime:', error);
+}
+
 console.log('Build completed successfully!');
