@@ -20,6 +20,19 @@ if (!fs.existsSync('dist/public')) {
 // Copy shared directory to dist
 fs.cpSync('shared', 'dist/shared', { recursive: true });
 
+// Copy migrations directory to dist
+if (fs.existsSync('migrations')) {
+  fs.cpSync('migrations', 'dist/migrations', { recursive: true });
+}
+
+// Create a .env file in dist with production environment variables
+const envContent = Object.entries(process.env)
+  .filter(([key]) => key.startsWith('DATABASE_') || key.startsWith('SUPABASE_'))
+  .map(([key, value]) => `${key}=${value}`)
+  .join('\n');
+
+fs.writeFileSync('dist/.env', envContent);
+
 // Compile TypeScript files
 console.log('Compiling TypeScript files...');
 try {
