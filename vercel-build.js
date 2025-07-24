@@ -33,6 +33,12 @@ const envContent = Object.entries(process.env)
 
 fs.writeFileSync('dist/.env', envContent);
 
+// Create a package.json in dist for module resolution
+const packageJson = {
+  "type": "module"
+};
+fs.writeFileSync('dist/package.json', JSON.stringify(packageJson, null, 2));
+
 // Compile TypeScript files
 console.log('Compiling TypeScript files...');
 try {
