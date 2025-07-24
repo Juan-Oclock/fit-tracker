@@ -6,7 +6,16 @@
     "rootDir": "./",
     "esModuleInterop": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["./client/src/*"],
+      "@shared/*": ["./shared/*"]
+    },
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "useUnknownInCatchVariables": false
   },
   "include": ["./**/*.ts"]
 }
